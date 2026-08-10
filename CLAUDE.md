@@ -26,6 +26,7 @@
 | `tools/go/` | 本地 Go 环境 |
 | `tools/update-ipdb/` | IP 数据库自动更新脚本 |
 | `tools/deploy/` | CentOS 一键部署脚本 |
+| GitHub 仓库 | https://github.com/JR-coderli/efilter |
 
 ## 本地运行依赖
 
@@ -215,10 +216,18 @@ IP2PROXY_URL=https://www.ip2location.com/download?token=...&file=PX2LITEBIN
 
 ## 生产部署
 
+GitHub 仓库：https://github.com/JR-coderli/efilter
+
 已提供 CentOS 一键部署脚本：
 
 ```bash
 sudo bash tools/deploy/deploy.sh
+```
+
+或直接在服务器上执行：
+
+```bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/JR-coderli/efilter/main/tools/deploy/deploy.sh)"
 ```
 
 脚本会自动完成：安装 Go/PostgreSQL/Redis/Nginx、拉取代码、编译服务、初始化数据库、下载 IP 数据库、配置 systemd + Nginx、启动服务。
@@ -227,6 +236,39 @@ sudo bash tools/deploy/deploy.sh
 
 - 面板：`http://服务器IP/`
 - API：`http://服务器IP/api/v1/`
+- 健康检查：`http://服务器IP/health`
+
+**部署后必做事项：**
+
+1. 修改 `.env` 中的默认 PostgreSQL 密码（当前为 `admin123`）。
+2. 修改 `backend/risk-engine/configs/config.yaml` 中的数据库 DSN 密码。
+3. 修改默认 API Key：`risk-engine-dev-key-2026`。
+4. 替换 `.env` / `.env.example` 中的 `YOUR_TOKEN` 为真实 IP2Location 下载 token。
+5. 配置服务器防火墙，只开放 80/443 端口。
+6. 建议配置 HTTPS（certbot 或自签证书）。
+7. 设置 crontab 定时更新 IP 数据库并重启服务。
+
+**查看服务状态：**
+
+```bash
+sudo systemctl status efilter
+sudo journalctl -u efilter -f
+```
+
+**手动更新 IP 数据库：**
+
+```bash
+sudo bash /opt/efilter/tools/update-ipdb/update-ipdb.sh
+sudo systemctl restart efilter
+```
+
+**设置定时自动更新：**
+
+```bash
+sudo crontab -e
+# 添加：
+0 3 * * * /opt/efilter/tools/update-ipdb/update-ipdb.sh >> /opt/efilter/logs/ipdb-update.log 2>&1 && /usr/bin/systemctl restart efilter
+```
 
 ## 后续扩展方向
 
@@ -239,9 +281,11 @@ sudo bash tools/deploy/deploy.sh
 
 ## 最后更新
 
+- 2026-08-10：项目已推送至 GitHub（https://github.com/JR-coderli/efilter），正在 CentOS 生产环境部署中。
 - 2026-08-10：新增前端访问记录面板 `/dashboard/`，访问日志写入 PostgreSQL 并保留 24 小时；新增 `GET /api/v1/logs`。
 - 2026-08-10：新增 `.gitignore`、`tools/deploy/deploy.sh` CentOS 一键部署脚本；`.env.production.example` 重命名为 `.env`（本地），并新增 `.env.example` 模板。
 - 2026-08-10：新增 `tools/update-ipdb/update-ipdb.sh` 自动更新脚本，支持下载 zip、解压、原子替换 BIN；下载地址记录到 `.env` / `.env.example`。
+- 2026-08-10：IP 数据库和日志路径改为相对路径，BIN 文件统一放到项目根目录 `binfiles/`，便于生产环境路径一致。
 - 2026-08-10：补充生产环境 IP 数据源方案说明：推荐直接读 BIN + 定时更新，不入库；Redis 主要用于限流，IP 结果缓存收益有限。
 - 2026-08-10：本地数据库从 SQLite 切换到 PostgreSQL，新增 `.env.production.example` 环境变量示例。
 - 2026-08-10：新增 `/api/v1/results` 接口，接入 IPv6 数据源，Redis 改用 6380 端口。
