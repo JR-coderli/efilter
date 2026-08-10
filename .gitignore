@@ -1,0 +1,56 @@
+# Compiled binaries
+*.exe
+*.dll
+*.so
+*.dylib
+backend/risk-engine/risk-engine
+backend/risk-engine/risk-engine.exe
+
+# Logs
+logs/
+*.log
+*.out
+
+# Runtime data
+data/
+tmp/
+
+# Environment files (keep example only)
+.env
+.env.local
+.env.*.local
+
+# Go
+vendor/
+*.test
+*.prof
+coverage.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local toolchains (production uses system Go)
+tools/go/
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# IP database files (downloaded/extracted on server; keep directory)
+binfiles/*
+!binfiles/.gitkeep
+
+# Downloaded/extracted IP DB archives (keep extracted binfiles/)
+*.zip
+*.tar.gz
+backend/docs/IP2LOCATION-LITE-DB*.BIN/
+backend/docs/IP2PROXY-LITE-PX*.BIN/

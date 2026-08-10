@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>efilter 风控记录面板</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f7fa;
+            color: #333;
+        }
+        h1 { margin-top: 0; color: #2c3e50; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .stat-card .label { font-size: 12px; color: #888; margin-bottom: 6px; }
+        .stat-card .value { font-size: 22px; font-weight: 600; }
+        .filters {
+            background: #fff;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filters input, .filters select, .filters button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .filters button {
+            background: #3498db;
+            color: #fff;
+            border-color: #3498db;
+            cursor: pointer;
+        }
+        .filters button:hover { background: #2980b9; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+        th { background: #f8f9fa; font-weight: 600; color: #666; }
+        tr:hover { background: #f8f9fa; }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .tag-safe { background: #d4edda; color: #155724; }
+        .tag-review { background: #fff3cd; color: #856404; }
+        .tag-block { background: #f8d7da; color: #721c24; }
+        .tag-allow { background: #d4edda; color: #155724; }
+        .tag-deny { background: #f8d7da; color: #721c24; }
+        .pagination {
+            margin-top: 16px;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+        }
+        .pagination button {
+            padding: 8px 14px;
+            border: 1px solid #ddd;
+            background: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .pagination button:disabled { color: #aaa; cursor: not-allowed; }
+        .pagination button.active { background: #3498db; color: #fff; border-color: #3498db; }
+        .empty { text-align: center; padding: 40px; color: #888; }
+        .json { font-family: monospace; font-size: 12px; color: #666; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        code { background: #f1f1f1; padding: 2px 4px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🛡️ efilter 风控记录面板</h1>
+    <p>数据保留 <strong>24 小时</strong>，自动清理过期记录。</p>
+
+    <div class="stats">
+        <div class="stat-card">
+            <div class="label">总请求数</div>
+            <div class="value" id="stat-total">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">放行</div>
+            <div class="value" id="stat-allow">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">拦截 / 审查</div>
+            <div class="value" id="stat-deny">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">最近 1 小时</div>
+            <div class="value" id="stat-hour">-</div>
+        </div>
+    </div>
+
+    <div class="filters">
+        <input type="text" id="filter-ip" placeholder="IP 筛选">
+        <select id="filter-path">
+            <option value="">全部接口</option>
+            <option value="/api/v1/check">/api/v1/check</option>
+            <option value="/api/v1/results">/api/v1/results</option>
+        </select>
+        <button onclick="loadLogs(0)">查询</button>
+        <button onclick="resetFilters()">重置</button>
+        <span style="color:#888;font-size:13px;">自动刷新：<span id="countdown">30</span>s</span>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>时间</th>
+                <th>IP</th>
+                <th>接口</th>
+                <th>国家</th>
+                <th>风险分</th>
+                <th>动作</th>
+                <th>命中规则</th>
+                <th>耗时</th>
+                <th>状态</th>
+                <th>响应</th>
+            </tr>
+        </thead>
+        <tbody id="logs-body">
+            <tr><td colspan="10" class="empty">加载中...</td></tr>
+        </tbody>
+    </table>
+
+    <div class="pagination" id="pagination"></div>
+
+    <script>
+        const API_KEY = 'risk-engine-dev-key-2026';
+        let currentPage = 0;
+        let pageSize = 100;
+        let total = 0;
+        let countdown = 30;
+
+        function tagClass(action, result) {
+            if (result === false) return 'tag-deny';
+            if (result === true) return 'tag-allow';
+            if (action === 'safe') return 'tag-safe';
+            if (action === 'review') return 'tag-review';
+            if (action === 'block') return 'tag-block';
+            return '';
+        }
+
+        function shortPath(path) {
+            return path.replace('/api/v1/', '');
+        }
+
+        function tryParseResult(body) {
+            try { return JSON.parse(body); } catch { return null; }
+        }
+
+        function formatTime(iso) {
+            const d = new Date(iso);
+            return d.toLocaleString('zh-CN', { hour12: false });
+        }
+
+        function renderPagination() {
+            const pages = Math.ceil(total / pageSize);
+            const el = document.getElementById('pagination');
+            let html = `<button ${currentPage === 0 ? 'disabled' : ''} onclick="loadLogs(${currentPage - 1})">上一页</button>`;
+            for (let i = 0; i < pages; i++) {
+                if (i === currentPage) {
+                    html += `<button class="active">${i + 1}</button>`;
+                } else if (i < 3 || i > pages - 4 || Math.abs(i - currentPage) < 2) {
+                    html += `<button onclick="loadLogs(${i})">${i + 1}</button>`;
+                } else if (i === 3 || i === pages - 4) {
+                    html += `<span>...</span>`;
+                }
+            }
+            html += `<button ${currentPage >= pages - 1 ? 'disabled' : ''} onclick="loadLogs(${currentPage + 1})">下一页</button>`;
+            el.innerHTML = html;
+        }
+
+        function renderStats(logs) {
+            document.getElementById('stat-total').textContent = total;
+            let allow = 0, deny = 0;
+            const hourAgo = Date.now() - 3600000;
+            let hourCount = 0;
+            logs.forEach(log => {
+                const result = tryParseResult(log.response_body);
+                let blocked = false;
+                if (result && typeof result.result === 'boolean') {
+                    blocked = !result.result;
+                } else if (result && result.data && result.data.action) {
+                    blocked = result.data.action === 'block';
+                }
+                if (blocked) deny++; else allow++;
+                if (new Date(log.created_at).getTime() > hourAgo) hourCount++;
+            });
+            document.getElementById('stat-allow').textContent = allow;
+            document.getElementById('stat-deny').textContent = deny;
+            document.getElementById('stat-hour').textContent = hourCount;
+        }
+
+        function renderLogs(logs) {
+            const tbody = document.getElementById('logs-body');
+            if (!logs || logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" class="empty">暂无记录</td></tr>';
+                return;
+            }
+            tbody.innerHTML = logs.map(log => {
+                const result = tryParseResult(log.response_body);
+                let resultText = '';
+                if (result && typeof result.result === 'boolean') {
+                    resultText = result.result ? '放行' : '拦截';
+                } else if (result && result.data) {
+                    resultText = result.data.action || 'safe';
+                }
+                const action = log.action || resultText;
+                const cls = tagClass(log.action, result ? result.result : undefined);
+                return `<tr>
+                    <td>${formatTime(log.created_at)}</td>
+                    <td><code>${log.client_ip}</code></td>
+                    <td><code>${shortPath(log.path)}</code></td>
+                    <td>${log.country || '-'}</td>
+                    <td>${log.risk_score}</td>
+                    <td><span class="tag ${cls}">${action || '-'}</span></td>
+                    <td>${log.rule_hit || '-'}</td>
+                    <td>${log.response_time_ms}ms</td>
+                    <td>${log.status_code}</td>
+                    <td><div class="json" title="${(log.response_body || '').replace(/"/g, '&quot;')}">${log.response_body || '-'}</div></td>
+                </tr>`;
+            }).join('');
+            renderStats(logs);
+        }
+
+        async function loadLogs(page = 0) {
+            currentPage = page;
+            const ip = document.getElementById('filter-ip').value.trim();
+            const path = document.getElementById('filter-path').value;
+            let url = `/api/v1/logs?limit=${pageSize}&offset=${page * pageSize}`;
+            if (ip) url += `&ip=${encodeURIComponent(ip)}`;
+            if (path) url += `&path=${encodeURIComponent(path)}`;
+
+            try {
+                const res = await fetch(url, { headers: { 'X-API-Key': API_KEY } });
+                const data = await res.json();
+                if (data.code !== 0) throw new Error(data.message);
+                total = data.data.total;
+                renderLogs(data.data.logs);
+                renderPagination();
+            } catch (err) {
+                document.getElementById('logs-body').innerHTML = `<tr><td colspan="10" class="empty">加载失败：${err.message}</td></tr>`;
+            }
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-ip').value = '';
+            document.getElementById('filter-path').value = '';
+            loadLogs(0);
+        }
+
+        setInterval(() => {
+            countdown--;
+            if (countdown <= 0) {
+                countdown = 30;
+                loadLogs(currentPage);
+            }
+            document.getElementById('countdown').textContent = countdown;
+        }, 1000);
+
+        loadLogs(0);
+    </script>
+</body>
+</html>

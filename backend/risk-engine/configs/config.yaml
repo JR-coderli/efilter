@@ -1,0 +1,34 @@
+app:
+  name: "risk-engine"
+  mode: "debug" # debug / release
+  port: 8080
+
+# 本地开发使用 PostgreSQL（生产环境也建议用 PostgreSQL）
+# 如需切换回 SQLite：driver: sqlite，dsn: file:...
+database:
+  driver: "postgres"
+  dsn: "host=localhost user=postgres password=admin123 dbname=risk_engine port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+  max_open_conns: 100
+  max_idle_conns: 20
+
+redis:
+  addr: "127.0.0.1:6380"
+  password: ""
+  db: 0
+  pool_size: 20
+
+ipdb:
+  # 相对路径：以 risk-engine 工作目录为基准，binfiles 位于项目根目录
+  ip2location: "../../binfiles/IP2LOCATION-LITE-DB1.IPV6.BIN/IP2LOCATION-LITE-DB1.IPV6.BIN"
+  ip2proxy: "../../binfiles/IP2PROXY-LITE-PX2.BIN/IP2PROXY-LITE-PX2.BIN"
+
+rate_limit:
+  # 窗口大小（秒），设为 1 秒以实现 QPS 限流
+  window: 1
+  # 每个 API Key 在窗口内最大请求数，即 QPS 上限
+  max_requests: 2000
+
+log:
+  level: "info"
+  # 相对路径：以 risk-engine 工作目录为基准
+  path: "logs/app.log"
