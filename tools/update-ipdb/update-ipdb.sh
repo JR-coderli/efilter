@@ -85,11 +85,11 @@ download_and_extract() {
     mkdir -p "${target_dir}"
 
     # 原子替换：先写到临时文件，再重命名
-    local tmp_dest="${target_dir}/.tmp.${target_name}.BIN"
+    local tmp_dest="${target_dir}/.tmp.${target_name}"
     cp -f "${bin_file}" "${tmp_dest}"
-    mv -f "${tmp_dest}" "${target_dir}/${target_name}.BIN"
+    mv -f "${tmp_dest}" "${target_dir}/${target_name}"
 
-    log "Updated ${name} -> ${target_dir}/${target_name}.BIN"
+    log "Updated ${name} -> ${target_dir}/${target_name}"
 }
 
 # download_and_extract_csv downloads a zip, extracts the first .CSV file, and
@@ -131,11 +131,11 @@ download_and_extract_csv() {
     local target_dir="${dest_dir}/${target_name}"
     mkdir -p "${target_dir}"
 
-    local tmp_dest="${target_dir}/.tmp.${target_name}.CSV"
+    local tmp_dest="${target_dir}/.tmp.${target_name}"
     cp -f "${csv_file}" "${tmp_dest}"
-    mv -f "${tmp_dest}" "${target_dir}/${target_name}.CSV"
+    mv -f "${tmp_dest}" "${target_dir}/${target_name}"
 
-    log "Updated ${name} -> ${target_dir}/${target_name}.CSV"
+    log "Updated ${name} -> ${target_dir}/${target_name}"
 }
 
 main() {
