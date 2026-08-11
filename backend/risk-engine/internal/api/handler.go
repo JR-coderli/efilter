@@ -94,10 +94,11 @@ func (h *Handler) Results(c *gin.Context) {
 
 // LogsQuery is the query parameters for fetching access logs.
 type LogsQuery struct {
-	Limit  int    `form:"limit,default=100"`
-	Offset int    `form:"offset"`
-	IP     string `form:"ip"`
-	Path   string `form:"path"`
+	Limit        int    `form:"limit,default=100"`
+	Offset       int    `form:"offset"`
+	IP           string `form:"ip"`
+	Path         string `form:"path"`
+	ExcludePath  string `form:"exclude_path"`
 }
 
 // Logs returns recent access logs for the dashboard.
@@ -117,6 +118,9 @@ func (h *Handler) Logs(c *gin.Context) {
 	}
 	if q.Path != "" {
 		dbQuery = dbQuery.Where("path = ?", q.Path)
+	}
+	if q.ExcludePath != "" {
+		dbQuery = dbQuery.Where("path != ?", q.ExcludePath)
 	}
 
 	var total int64

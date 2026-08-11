@@ -95,6 +95,11 @@
         }
         .pagination button:disabled { color: #aaa; cursor: not-allowed; }
         .pagination button.active { background: #3498db; color: #fff; border-color: #3498db; }
+        .row-check { background: #f0f7ff; }
+        .row-results { background: #fff8f0; }
+        .row-logs { background: #f5f5f5; }
+        .row-health { background: #f0fff4; }
+        .row-default { background: #fff; }
         .empty { text-align: center; padding: 40px; color: #888; }
         .json { font-family: monospace; font-size: 12px; color: #666; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         code { background: #f1f1f1; padding: 2px 4px; border-radius: 3px; }
@@ -141,6 +146,7 @@
                 <th>时间</th>
                 <th>IP</th>
                 <th>接口</th>
+                <th>JSON_IP</th>
                 <th>国家</th>
                 <th>风险分</th>
                 <th>动作</th>
@@ -186,6 +192,27 @@
             return d.toLocaleString('zh-CN', { hour12: false });
         }
 
+        function rowClassByPath(path) {
+            if (path === '/api/v1/check') return 'row-check';
+            if (path === '/api/v1/results') return 'row-results';
+            if (path === '/api/v1/logs') return 'row-logs';
+            if (path === '/health') return 'row-health';
+            return 'row-default';
+        }
+
+        function extractIPFromBody(body) {
+            if (!body) return '';
+            // x-www-form-urlencoded: ip=1.2.3.3&country=US
+            const m1 = body.match(/ip=([^&]+)/i);
+            if (m1) return decodeURIComponent(m1[1]);
+            // json: {"ip":"1.2.3.4"}
+            try {
+                const j = JSON.parse(body);
+                if (j.ip) return j.ip;
+            } catch {}
+            return '';
+        }
+
         function renderPagination() {
             const pages = Math.ceil(total / pageSize);
             const el = document.getElementById('pagination');
@@ -227,7 +254,7 @@
         function renderLogs(logs) {
             const tbody = document.getElementById('logs-body');
             if (!logs || logs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" class="empty">暂无记录</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" class="empty">暂无记录</td></tr>';
                 return;
             }
             tbody.innerHTML = logs.map(log => {
@@ -240,10 +267,13 @@
                 }
                 const action = log.action || resultText;
                 const cls = tagClass(log.action, result ? result.result : undefined);
-                return `<tr>
+                const rowClass = rowClassByPath(log.path);
+                const jsonIP = extractIPFromBody(log.request_body);
+                return `<tr class="${rowClass}">
                     <td>${formatTime(log.created_at)}</td>
                     <td><code>${log.client_ip}</code></td>
                     <td><code>${shortPath(log.path)}</code></td>
+                    <td><code>${jsonIP || '-'}</code></td>
                     <td>${log.country || '-'}</td>
                     <td>${log.risk_score}</td>
                     <td><span class="tag ${cls}">${action || '-'}</span></td>
@@ -263,6 +293,7 @@
             let url = `/api/v1/logs?limit=${pageSize}&offset=${page * pageSize}`;
             if (ip) url += `&ip=${encodeURIComponent(ip)}`;
             if (path) url += `&path=${encodeURIComponent(path)}`;
+            url += `&exclude_path=${encodeURIComponent('/api/v1/logs')}`;
 
             try {
                 const res = await fetch(url, { headers: { 'X-API-Key': API_KEY } });
