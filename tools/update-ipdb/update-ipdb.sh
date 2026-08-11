@@ -41,10 +41,13 @@ trap cleanup EXIT
 
 work_dir=$(mktemp -d "${TMP_DIR}/update.XXXXXX")
 
+# download_and_extract downloads a zip, extracts the first .BIN file, and
+# places it under dest_dir/target_name/target_name.BIN.
 download_and_extract() {
     local name="$1"
     local url="$2"
     local dest_dir="$3"
+    local target_name="$4"
 
     log "Downloading ${name}..."
     local zip_file="${work_dir}/${name}.zip"
@@ -77,26 +80,25 @@ download_and_extract() {
         die "No BIN file found in ${name} archive"
     fi
 
-    # 目标目录（保持与原项目结构一致）
-    local bin_name
-    bin_name=$(basename "$(dirname "${bin_file})")
-    local target_dir="${dest_dir}/${bin_name}"
-
+    # 目标目录（固定名称，与 configs/config.yaml 保持一致）
+    local target_dir="${dest_dir}/${target_name}"
     mkdir -p "${target_dir}"
 
     # 原子替换：先写到临时文件，再重命名
-    local tmp_dest="${target_dir}/.tmp.${bin_name}.BIN"
+    local tmp_dest="${target_dir}/.tmp.${target_name}.BIN"
     cp -f "${bin_file}" "${tmp_dest}"
-    mv -f "${tmp_dest}" "${target_dir}/${bin_name}.BIN"
+    mv -f "${tmp_dest}" "${target_dir}/${target_name}.BIN"
 
-    log "Updated ${name} -> ${target_dir}/${bin_name}.BIN"
+    log "Updated ${name} -> ${target_dir}/${target_name}.BIN"
 }
 
-# 下载并解压 CSV 格式数据库（IP2Proxy IPv6）
+# download_and_extract_csv downloads a zip, extracts the first .CSV file, and
+# places it under dest_dir/target_name/target_name.CSV.
 download_and_extract_csv() {
     local name="$1"
     local url="$2"
     local dest_dir="$3"
+    local target_name="$4"
 
     log "Downloading ${name} CSV..."
     local zip_file="${work_dir}/${name}.zip"
@@ -125,25 +127,24 @@ download_and_extract_csv() {
         die "No CSV file found in ${name} archive"
     fi
 
-    local csv_name
-    csv_name=$(basename "$(dirname "${csv_file}")")
-    local target_dir="${dest_dir}/${csv_name}"
+    # 目标目录（固定名称，与 configs/config.yaml 保持一致）
+    local target_dir="${dest_dir}/${target_name}"
     mkdir -p "${target_dir}"
 
-    local tmp_dest="${target_dir}/.tmp.${csv_name}.CSV"
+    local tmp_dest="${target_dir}/.tmp.${target_name}.CSV"
     cp -f "${csv_file}" "${tmp_dest}"
-    mv -f "${tmp_dest}" "${target_dir}/${csv_name}.CSV"
+    mv -f "${tmp_dest}" "${target_dir}/${target_name}.CSV"
 
-    log "Updated ${name} -> ${target_dir}/${csv_name}.CSV"
+    log "Updated ${name} -> ${target_dir}/${target_name}.CSV"
 }
 
 main() {
     log "Starting IP database update..."
     log "BIN_DIR=${BIN_DIR}"
 
-    download_and_extract "IP2LOCATION" "${IP2LOCATION_URL}" "${BIN_DIR}"
-    download_and_extract "IP2PROXY" "${IP2PROXY_URL}" "${BIN_DIR}"
-    download_and_extract_csv "IP2PROXY-IPV6" "${IP2PROXY_IPV6_URL}" "${BIN_DIR}"
+    download_and_extract "IP2LOCATION" "${IP2LOCATION_URL}" "${BIN_DIR}" "IP2LOCATION-LITE-DB1.IPV6.BIN"
+    download_and_extract "IP2PROXY" "${IP2PROXY_URL}" "${BIN_DIR}" "IP2PROXY-LITE-PX2.BIN"
+    download_and_extract_csv "IP2PROXY-IPV6" "${IP2PROXY_IPV6_URL}" "${BIN_DIR}" "IP2PROXY-LITE-PX2.IPV6.CSV"
 
     log "IP database update completed successfully."
     log "Restart risk-engine service to load new BIN/CSV files."
