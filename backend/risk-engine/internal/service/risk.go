@@ -81,14 +81,6 @@ func (s *RiskService) Filter(ctx context.Context, ip, targetCountries string) (*
 		return nil, fmt.Errorf("ip is required")
 	}
 
-	// Whitelist / blacklist short-circuit.
-	if s.isWhitelisted(ctx, ip) {
-		return &FilterResult{Result: true, Action: "allow", RuleHit: "whitelist"}, nil
-	}
-	if s.isBlacklisted(ctx, ip) {
-		return &FilterResult{Result: false, RiskScore: 100, Action: "block", RuleHit: "blacklist"}, nil
-	}
-
 	info, err := s.ipdb.Query(ip)
 	if err != nil {
 		return nil, fmt.Errorf("ip query failed: %w", err)
@@ -194,18 +186,10 @@ func (s *RiskService) Check(ctx context.Context, req CheckRequest) (*CheckResult
 		return nil, fmt.Errorf("ip query failed: %w", err)
 	}
 
-	// 3. Whitelist / blacklist.
-	if s.isWhitelisted(ctx, req.IP) {
-		return s.cacheAndReturn(ctx, cacheKey, info, 0, "safe", "whitelist"), nil
-	}
-	if s.isBlacklisted(ctx, req.IP) {
-		return s.cacheAndReturn(ctx, cacheKey, info, 100, "block", "blacklist"), nil
-	}
-
-	// 4. Score.
+	// 3. Score.
 	score, action, ruleHit := s.calculateScore(ctx, info)
 
-	// 5. Cache and return.
+	// 4. Cache and return.
 	return s.cacheAndReturn(ctx, cacheKey, info, score, action, ruleHit), nil
 }
 
@@ -263,18 +247,6 @@ func (s *RiskService) setCache(ctx context.Context, key string, info *database.I
 		return err
 	}
 	return s.redis.Set(ctx, key, data, ttl).Err()
-}
-
-func (s *RiskService) isWhitelisted(ctx context.Context, ip string) bool {
-	var count int64
-	s.db.WithContext(ctx).Model(&models.IPWhitelist{}).Where("ip = ?", ip).Count(&count)
-	return count > 0
-}
-
-func (s *RiskService) isBlacklisted(ctx context.Context, ip string) bool {
-	var count int64
-	s.db.WithContext(ctx).Model(&models.IPBlacklist{}).Where("ip = ?", ip).Count(&count)
-	return count > 0
 }
 
 func (s *RiskService) calculateScore(ctx context.Context, info *database.IPInfo) (int, string, string) {

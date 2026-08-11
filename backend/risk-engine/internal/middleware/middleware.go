@@ -119,7 +119,7 @@ func RateLimit(redis *redis.Client, cfg config.RateLimitConfig) gin.HandlerFunc 
 	}
 }
 
-func AccessLog(db *gorm.DB, log *zap.Logger) gin.HandlerFunc {
+func AccessLog(batcher *AccessLogBatcher, log *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 
@@ -174,33 +174,28 @@ func AccessLog(db *gorm.DB, log *zap.Logger) gin.HandlerFunc {
 
 		logger.Info("access", fields...)
 
-		// Persist to PostgreSQL asynchronously.
+		// Persist to PostgreSQL asynchronously via batcher.
 		respBody := blw.body.String()
 		if len(respBody) > 4096 {
 			respBody = respBody[:4096]
 		}
 
-		go func() {
-			record := models.AccessLog{
-				RequestID:    getString(c, CtxRequestID),
-				ClientIP:     c.ClientIP(),
-				Method:       c.Request.Method,
-				Path:         c.Request.URL.Path,
-				UserAgent:    c.Request.UserAgent(),
-				Country:      country,
-				RiskScore:    score,
-				Action:       action,
-				RuleHit:      ruleHit,
-				RequestBody:  reqBody,
-				ResponseBody: respBody,
-				StatusCode:   c.Writer.Status(),
-				ResponseTime: duration.Milliseconds(),
-				CreatedAt:    time.Now(),
-			}
-			if err := db.WithContext(context.Background()).Create(&record).Error; err != nil {
-				log.Error("failed to save access log", zap.Error(err))
-			}
-		}()
+		batcher.Add(models.AccessLog{
+			RequestID:    getString(c, CtxRequestID),
+			ClientIP:     c.ClientIP(),
+			Method:       c.Request.Method,
+			Path:         c.Request.URL.Path,
+			UserAgent:    c.Request.UserAgent(),
+			Country:      country,
+			RiskScore:    score,
+			Action:       action,
+			RuleHit:      ruleHit,
+			RequestBody:  reqBody,
+			ResponseBody: respBody,
+			StatusCode:   c.Writer.Status(),
+			ResponseTime: duration.Milliseconds(),
+			CreatedAt:    time.Now(),
+		})
 	}
 }
 

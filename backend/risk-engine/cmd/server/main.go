@@ -13,6 +13,7 @@ import (
 	"risk-engine/internal/config"
 	"risk-engine/internal/database"
 	"risk-engine/internal/logger"
+	"risk-engine/internal/middleware"
 	"risk-engine/internal/models"
 	"risk-engine/internal/service"
 
@@ -58,9 +59,13 @@ func main() {
 	// Start background cleanup for access logs (retain 24 hours).
 	go startAccessLogCleanup(db)
 
+	// Start batched access log writer (flush every minute).
+	accessLogBatcher := middleware.NewAccessLogBatcher(db, logger.L(), time.Minute)
+	defer accessLogBatcher.Stop()
+
 	riskService := service.NewRiskService(db, rdb, ipdb)
 	handler := api.NewHandler(riskService)
-	router := api.NewRouter(cfg, db, rdb, handler, logger.L())
+	router := api.NewRouter(cfg, db, accessLogBatcher, rdb, handler, logger.L())
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.App.Port),

@@ -28,7 +28,7 @@ func getFrontendDir() string {
 	return filepath.ToSlash(abs)
 }
 
-func NewRouter(cfg *config.Config, db *gorm.DB, rdb *redis.Client, h *Handler, log *zap.Logger) *gin.Engine {
+func NewRouter(cfg *config.Config, db *gorm.DB, batcher *middleware.AccessLogBatcher, rdb *redis.Client, h *Handler, log *zap.Logger) *gin.Engine {
 	if cfg.App.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -36,7 +36,7 @@ func NewRouter(cfg *config.Config, db *gorm.DB, rdb *redis.Client, h *Handler, l
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(middleware.RequestID())
-	r.Use(middleware.AccessLog(db, log))
+	r.Use(middleware.AccessLog(batcher, log))
 
 	// Public health check.
 	r.GET("/health", h.Health)
