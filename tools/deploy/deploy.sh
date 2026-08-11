@@ -46,10 +46,10 @@ install_dependencies() {
     log "Installing dependencies..."
     if command_exists dnf; then
         dnf update -y
-        dnf install -y curl wget git unzip postgresql-server postgresql-contrib redis nginx
+        dnf install -y curl wget git unzip postgresql-server postgresql-contrib redis
     elif command_exists yum; then
         yum update -y
-        yum install -y curl wget git unzip postgresql-server postgresql-contrib redis nginx
+        yum install -y curl wget git unzip postgresql-server postgresql-contrib redis
     else
         die "No supported package manager found (dnf/yum)"
     fi
@@ -180,28 +180,13 @@ EOF
     systemctl enable efilter
 }
 
-configure_nginx() {
-    log "Configuring Nginx..."
-    cat > /etc/nginx/conf.d/efilter.conf <<EOF
-server {
-    listen 80;
-    server_name _;
-
-    access_log /var/log/nginx/efilter-access.log;
-    error_log /var/log/nginx/efilter-error.log;
-
-    location / {
-        proxy_pass http://127.0.0.1:${API_PORT};
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-EOF
-
-    systemctl enable nginx
-    systemctl restart nginx
+configure_nginx_hint() {
+    log "Nginx configuration skipped (Baota Panel detected or manual setup preferred)."
+    log "Please configure reverse proxy manually:"
+    log "  1. In Baota Panel, add a site (PHP version: static)."
+    log "  2. Edit site config and add the content from:"
+    log "     ${INSTALL_DIR}/tools/deploy/nginx-bt.conf"
+    log "  3. Save and Baota will reload Nginx automatically."
 }
 
 start_service() {
@@ -223,10 +208,12 @@ main() {
     build_service
     update_ipdb
     configure_service
-    configure_nginx
+    configure_nginx_hint
     start_service
 
     log "Deployment completed!"
+    log "Remember to configure Nginx reverse proxy in Baota Panel."
+    log "See: ${INSTALL_DIR}/tools/deploy/nginx-bt.conf"
     log "Dashboard: http://YOUR_SERVER_IP/"
     log "API: http://YOUR_SERVER_IP/api/v1/"
 }
