@@ -27,6 +27,7 @@ API_PORT="${API_PORT:-8080}"
 # IP 数据库下载地址（请替换为实际 token）
 IP2LOCATION_URL="${IP2LOCATION_URL:-https://www.ip2location.com/download?token=YOUR_TOKEN&file=DB1LITEBINIPV6}"
 IP2PROXY_URL="${IP2PROXY_URL:-https://www.ip2location.com/download?token=YOUR_TOKEN&file=PX2LITEBIN}"
+IP2PROXY_IPV6_URL="${IP2PROXY_IPV6_URL:-https://www.ip2location.com/download?token=YOUR_TOKEN&file=PX2LITECSVIPV6}"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
@@ -149,6 +150,7 @@ update_ipdb() {
     cd "${INSTALL_DIR}"
     export IP2LOCATION_URL
     export IP2PROXY_URL
+    export IP2PROXY_IPV6_URL
     bash tools/update-ipdb/update-ipdb.sh || log "Warning: IP database update failed, will retry later"
     chown -R "${APP_USER}:${APP_USER}" binfiles
 }
