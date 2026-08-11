@@ -41,6 +41,9 @@ func NewRouter(cfg *config.Config, db *gorm.DB, batcher *middleware.AccessLogBat
 	// Public health check.
 	r.GET("/health", h.Health)
 
+	// Ignore favicon requests to avoid noisy access logs.
+	r.GET("/favicon.ico", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+
 	// Dashboard frontend.
 	frontendDir := getFrontendDir()
 	r.GET("/static/*filepath", gin.WrapH(http.StripPrefix("/static/", http.FileServer(http.Dir(frontendDir)))))
