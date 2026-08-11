@@ -99,6 +99,28 @@ func (s *RiskService) Filter(ctx context.Context, ip, targetCountries string) (*
 		country = info.CountryLong
 	}
 
+	// Build a readable proxy hit summary, e.g. "proxy:yes(PUB)" or "proxy:no".
+	proxyHit := "proxy:no"
+	if info.IsProxy || info.IsVPN || info.IsTor || info.IsDatacenter {
+		var details []string
+		if info.IsVPN {
+			details = append(details, "VPN")
+		}
+		if info.IsTor {
+			details = append(details, "TOR")
+		}
+		if info.IsDatacenter {
+			details = append(details, "DCH")
+		}
+		if info.ProxyType != "" && !strings.EqualFold(info.ProxyType, "VPN") && !strings.EqualFold(info.ProxyType, "TOR") && !strings.EqualFold(info.ProxyType, "DCH") {
+			details = append(details, strings.ToUpper(info.ProxyType))
+		}
+		if len(details) == 0 {
+			details = append(details, "YES")
+		}
+		proxyHit = "proxy:yes(" + strings.Join(details, "/") + ")"
+	}
+
 	// If proxy/VPN/Tor/datacenter -> block.
 	if info.IsProxy || info.IsVPN || info.IsTor || info.IsDatacenter {
 		score, action, ruleHit := s.calculateScore(ctx, info)
@@ -107,19 +129,19 @@ func (s *RiskService) Filter(ctx context.Context, ip, targetCountries string) (*
 			Country:   country,
 			RiskScore: score,
 			Action:    action,
-			RuleHit:   ruleHit,
+			RuleHit:   ruleHit + " & " + proxyHit,
 		}, nil
 	}
 
 	// If we cannot determine the country, default allow.
 	if country == "" {
-		return &FilterResult{Result: true, Action: "allow", RuleHit: "unknown_country"}, nil
+		return &FilterResult{Result: true, Action: "allow", RuleHit: "unknown_country & " + proxyHit}, nil
 	}
 
 	// Empty targetCountries or ALL means any country is allowed.
 	trimmedTargets := strings.TrimSpace(targetCountries)
 	if trimmedTargets == "" || strings.EqualFold(trimmedTargets, "ALL") {
-		return &FilterResult{Result: true, Country: country, Action: "allow", RuleHit: "all_countries_allowed"}, nil
+		return &FilterResult{Result: true, Country: country, Action: "allow", RuleHit: "all_countries_allowed & " + proxyHit}, nil
 	}
 
 	// Check target countries.
@@ -130,7 +152,7 @@ func (s *RiskService) Filter(ctx context.Context, ip, targetCountries string) (*
 				Result:  true,
 				Country: country,
 				Action:  "allow",
-				RuleHit: "country_match:" + strings.ToUpper(country),
+				RuleHit: "country_match:" + strings.ToUpper(country) + " & " + proxyHit,
 			}, nil
 		}
 	}
@@ -139,7 +161,7 @@ func (s *RiskService) Filter(ctx context.Context, ip, targetCountries string) (*
 		Result:  false,
 		Country: country,
 		Action:  "block",
-		RuleHit: "country_mismatch:" + strings.ToUpper(country) + "!=" + strings.ToUpper(trimmedTargets),
+		RuleHit: "country_mismatch:" + strings.ToUpper(country) + "!=" + strings.ToUpper(trimmedTargets) + " & " + proxyHit,
 	}, nil
 }
 
