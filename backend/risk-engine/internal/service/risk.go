@@ -64,7 +64,11 @@ func (s *RiskService) DB() *gorm.DB {
 
 // FilterResult is the boolean result used by the PHP landing page.
 type FilterResult struct {
-	Result bool `json:"result"`
+	Result    bool   `json:"result"`
+	Country   string `json:"-"`
+	RiskScore int    `json:"-"`
+	Action    string `json:"-"`
+	RuleHit   string `json:"-"`
 }
 
 // Filter evaluates an IP for the PHP front-end.
@@ -79,10 +83,10 @@ func (s *RiskService) Filter(ctx context.Context, ip, targetCountries string) (*
 
 	// Whitelist / blacklist short-circuit.
 	if s.isWhitelisted(ctx, ip) {
-		return &FilterResult{Result: true}, nil
+		return &FilterResult{Result: true, Action: "allow", RuleHit: "whitelist"}, nil
 	}
 	if s.isBlacklisted(ctx, ip) {
-		return &FilterResult{Result: false}, nil
+		return &FilterResult{Result: false, RiskScore: 100, Action: "block", RuleHit: "blacklist"}, nil
 	}
 
 	info, err := s.ipdb.Query(ip)
@@ -90,35 +94,53 @@ func (s *RiskService) Filter(ctx context.Context, ip, targetCountries string) (*
 		return nil, fmt.Errorf("ip query failed: %w", err)
 	}
 
-	// If proxy/VPN/Tor/datacenter -> block.
-	if info.IsProxy || info.IsVPN || info.IsTor || info.IsDatacenter {
-		return &FilterResult{Result: false}, nil
-	}
-
-	// If we cannot determine the country, default allow.
 	country := info.Country
 	if country == "" {
 		country = info.CountryLong
 	}
+
+	// If proxy/VPN/Tor/datacenter -> block.
+	if info.IsProxy || info.IsVPN || info.IsTor || info.IsDatacenter {
+		score, action, ruleHit := s.calculateScore(ctx, info)
+		return &FilterResult{
+			Result:    false,
+			Country:   country,
+			RiskScore: score,
+			Action:    action,
+			RuleHit:   ruleHit,
+		}, nil
+	}
+
+	// If we cannot determine the country, default allow.
 	if country == "" {
-		return &FilterResult{Result: true}, nil
+		return &FilterResult{Result: true, Action: "allow", RuleHit: "unknown_country"}, nil
 	}
 
 	// Empty targetCountries or ALL means any country is allowed.
 	trimmedTargets := strings.TrimSpace(targetCountries)
 	if trimmedTargets == "" || strings.EqualFold(trimmedTargets, "ALL") {
-		return &FilterResult{Result: true}, nil
+		return &FilterResult{Result: true, Country: country, Action: "allow", RuleHit: "all_countries_allowed"}, nil
 	}
 
 	// Check target countries.
 	targets := splitAndTrim(targetCountries, ",")
 	for _, t := range targets {
 		if strings.EqualFold(t, country) {
-			return &FilterResult{Result: true}, nil
+			return &FilterResult{
+				Result:  true,
+				Country: country,
+				Action:  "allow",
+				RuleHit: "country_match:" + strings.ToUpper(country),
+			}, nil
 		}
 	}
 
-	return &FilterResult{Result: false}, nil
+	return &FilterResult{
+		Result:  false,
+		Country: country,
+		Action:  "block",
+		RuleHit: "country_mismatch:" + strings.ToUpper(country) + "!=" + strings.ToUpper(trimmedTargets),
+	}, nil
 }
 
 func splitAndTrim(s, sep string) []string {

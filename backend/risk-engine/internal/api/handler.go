@@ -84,13 +84,10 @@ func (h *Handler) Results(c *gin.Context) {
 		return
 	}
 
-	c.Set("log_country", req.Country)
-	c.Set("log_risk_score", 0)
-	c.Set("log_action", "")
-	c.Set("log_rule_hit", "")
-	if !result.Result {
-		c.Set("log_rule_hit", "php_filter_block")
-	}
+	c.Set("log_country", result.Country)
+	c.Set("log_risk_score", result.RiskScore)
+	c.Set("log_action", result.Action)
+	c.Set("log_rule_hit", result.RuleHit)
 
 	c.JSON(http.StatusOK, gin.H{"result": result.Result})
 }
