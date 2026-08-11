@@ -21,6 +21,8 @@ ipdb:
   # 相对路径：以 risk-engine 工作目录为基准，binfiles 位于项目根目录
   ip2location: "../../binfiles/IP2LOCATION-LITE-DB1.IPV6.BIN/IP2LOCATION-LITE-DB1.IPV6.BIN"
   ip2proxy: "../../binfiles/IP2PROXY-LITE-PX2.BIN/IP2PROXY-LITE-PX2.BIN"
+  # IP2Proxy LITE 的 IPv6 数据只有 CSV 格式，启动时加载到内存
+  ip2proxy_ipv6_csv: "../../binfiles/IP2PROXY-LITE-PX2.IPV6.CSV/IP2PROXY-LITE-PX2.IPV6.CSV"
 
 rate_limit:
   # 窗口大小（秒），设为 1 秒以实现 QPS 限流

@@ -28,8 +28,9 @@ type RedisConfig struct {
 }
 
 type IPDBConfig struct {
-	IP2Location string `mapstructure:"ip2location"`
-	IP2Proxy    string `mapstructure:"ip2proxy"`
+	IP2Location     string `mapstructure:"ip2location"`
+	IP2Proxy        string `mapstructure:"ip2proxy"`
+	IP2ProxyIPv6CSV string `mapstructure:"ip2proxy_ipv6_csv"`
 }
 
 type RateLimitConfig struct {
@@ -43,12 +44,12 @@ type LogConfig struct {
 }
 
 type Config struct {
-	App        AppConfig       `mapstructure:"app"`
-	Database   DatabaseConfig  `mapstructure:"database"`
-	Redis      RedisConfig     `mapstructure:"redis"`
-	IPDB       IPDBConfig      `mapstructure:"ipdb"`
-	RateLimit  RateLimitConfig `mapstructure:"rate_limit"`
-	Log        LogConfig       `mapstructure:"log"`
+	App       AppConfig       `mapstructure:"app"`
+	Database  DatabaseConfig  `mapstructure:"database"`
+	Redis     RedisConfig     `mapstructure:"redis"`
+	IPDB      IPDBConfig      `mapstructure:"ipdb"`
+	RateLimit RateLimitConfig `mapstructure:"rate_limit"`
+	Log       LogConfig       `mapstructure:"log"`
 }
 
 func Load(configPath string) (*Config, error) {
