@@ -10,9 +10,9 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # 默认配置（可通过环境变量覆盖）
 BIN_DIR="${BIN_DIR:-${PROJECT_ROOT}/binfiles}"
 TMP_DIR="${TMP_DIR:-${PROJECT_ROOT}/tmp/ipdb-update}"
-IP2LOCATION_URL="${IP2LOCATION_URL:-https://www.ip2location.com/download?token=YOUR_TOKEN\&file=DB1LITEBINIPV6}"
-IP2PROXY_URL="${IP2PROXY_URL:-https://www.ip2location.com/download?token=YOUR_TOKEN\&file=PX2LITEBIN}"
-IP2PROXY_IPV6_URL="${IP2PROXY_IPV6_URL:-https://www.ip2location.com/download?token=YOUR_TOKEN\&file=PX2LITECSVIPV6}"
+IP2LOCATION_URL="${IP2LOCATION_URL:-https://www.ip2location.com/download?token=YOUR_TOKEN&file=DB1LITEBINIPV6}"
+IP2PROXY_URL="${IP2PROXY_URL:-https://www.ip2location.com/download?token=YOUR_TOKEN&file=PX2LITEBIN}"
+IP2PROXY_IPV6_URL="${IP2PROXY_IPV6_URL:-https://www.ip2location.com/download?token=YOUR_TOKEN&file=PX2LITECSVIPV6}"
 
 # 下载超时
 curl_connect_timeout="${CURL_CONNECT_TIMEOUT:-30}"

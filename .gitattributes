@@ -1,0 +1,19 @@
+# Force shell scripts to use LF line endings on checkout, regardless of platform.
+*.sh text eol=lf
+
+# Markdown and config files can use platform-native line endings.
+*.md text
+*.yaml text
+*.yml text
+*.go text
+*.json text
+*.env text
+*.example text
+
+# Treat binary files as binary (no line ending conversion).
+*.BIN binary
+*.CSV binary
+*.zip binary
+*.exe binary
+*.db binary
+*.log text
