@@ -8,7 +8,8 @@
 - [x] Gin HTTP 服务
 - [x] PostgreSQL 本地数据库 + GORM 模型/迁移（同时保留 MySQL / SQLite 支持）
 - [x] Redis 缓存与限流
-- [x] IP2Location / IP2Proxy BIN 本地查询（**已支持 IPv4 + IPv6**）
+- [x] IP2Location / IP2Proxy BIN 本地查询（IPv4）
+- [x] IP2Proxy IPv6 CSV 内存加载查询（IPv6 Public Proxy fallback）
 - [x] 风险评分引擎（VPN / Proxy / Datacenter / Tor / 黑名单 / 白名单 / 动态规则）
 - [x] API Key 认证 + 固定窗口限流（当前 QPS 上限 2000）
 - [x] 统一访问日志（`logs/app.log`）
@@ -75,8 +76,10 @@ go build -o risk-engine.exe ./cmd/server/main.go
 - **数据库**：默认使用 PostgreSQL（`risk_engine`，`localhost:5432`，用户 `postgres`）
 - **IP 库**（相对路径，以 `backend/risk-engine` 工作目录为基准）：
   - IP2Location：`../../binfiles/IP2LOCATION-LITE-DB1.IPV6.BIN/IP2LOCATION-LITE-DB1.IPV6.BIN`（**支持 IPv4 + IPv6**）
-  - IP2Proxy：`../../binfiles/IP2PROXY-LITE-PX2.BIN/IP2PROXY-LITE-PX2.BIN`
+  - IP2Proxy：`../../binfiles/IP2PROXY-LITE-PX2.BIN/IP2PROXY-LITE-PX2.BIN`（IPv4）
+  - IP2Proxy IPv6 CSV：`../../binfiles/IP2PROXY-LITE-PX2.IPV6.CSV/IP2PROXY-LITE-PX2.IPV6.CSV`（IPv6 Public Proxy）
   - 注意：文件名带 `.IPV6` 的版本才同时支持 IPv4 与 IPv6；不带 `.IPV6` 的 DB 文件通常为 IPv4 only。
+  - IP2Proxy LITE 的 IPv6 数据只有 CSV，启动时加载到内存，约 130MB；LITE 版仅含 `PUB` 类型。
 
 ## 默认 API Key
 

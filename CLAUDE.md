@@ -88,9 +88,14 @@ database:
 | 类型 | 路径 | 用途 |
 |------|------|------|
 | IP2Location | `binfiles/IP2LOCATION-LITE-DB1.IPV6.BIN/IP2LOCATION-LITE-DB1.IPV6.BIN` | 国家/地区查询，支持 IPv4 + IPv6 |
-| IP2Proxy | `binfiles/IP2PROXY-LITE-PX2.BIN/IP2PROXY-LITE-PX2.BIN` | 代理/VPN/数据中心检测 |
+| IP2Proxy | `binfiles/IP2PROXY-LITE-PX2.BIN/IP2PROXY-LITE-PX2.BIN` | 代理/VPN/数据中心检测（IPv4） |
+| IP2Proxy IPv6 CSV | `binfiles/IP2PROXY-LITE-PX2.IPV6.CSV/IP2PROXY-LITE-PX2.IPV6.CSV` | IPv6 Public Proxy 检测（LITE 版仅含 PUB） |
 
-**注意：** 文件名带 `.IPV6` 的版本才同时支持 IPv4 与 IPv6；不带 `.IPV6` 的 DB 文件（如 `IP2LOCATION-LITE-DB3.BIN`）通常为 IPv4 only，查询 IPv6 会报错。
+**注意：**
+- 文件名带 `.IPV6` 的版本才同时支持 IPv4 与 IPv6；不带 `.IPV6` 的 DB 文件（如 `IP2LOCATION-LITE-DB3.BIN`）通常为 IPv4 only，查询 IPv6 会报错。
+- IP2Proxy `PX2LITEBIN` 为 IPv4 only，IPv6 代理检测通过 `PX2LITECSVIPV6` 在内存中查询。
+- CSV 启动时加载到内存，约 276 万行、130MB 左右，查询用二分查找，延迟约 0.1ms。
+- LITE 版 CSV 当前只有 `PUB`（Public Proxy）类型，因此 IPv6 命中时标记为公共代理；未命中时按正常流量放行。
 
 ## 接口说明
 
@@ -148,7 +153,8 @@ risk-engine-dev-key-2026
 
 ## 重要实现细节
 
-- `internal/database/ipdb.go`：统一封装 IP2Location 和 IP2Proxy 查询，自动清理 `"UNAVAILABLE"`、`"NOT SUPPORTED"`、`"N/A"` 等占位字符串。
+- `internal/database/ipdb.go`：统一封装 IP2Location、IP2Proxy BIN 和 IP2Proxy IPv6 CSV 查询，自动清理 `"UNAVAILABLE"`、`"NOT SUPPORTED"`、`"N/A"` 等占位字符串。
+- `internal/database/ip2proxy_csv.go`：IPv6 CSV 内存加载与二分查找。
 - `internal/service/risk.go`：`Filter()` 用于 `/api/v1/results`，`Check()` 用于 `/api/v1/check`。
 - 数据库模型：`users`、`api_keys`、`risk_rules`、`ip_blacklists`、`ip_whitelists`。
 - 启动时会自动迁移并写入默认用户、API Key 和风险规则。
@@ -173,15 +179,15 @@ risk-engine-dev-key-2026
 - 生产 QPS 200，目标 1000~10000，单机 BIN 完全能支撑。
 - 广告流量 IP 重复率低，Redis 缓存命中率有限，反而多一次网络往返。
 
-**BIN 自动更新机制建议：**
+**BIN/CSV 自动更新机制建议：**
 
 已实现脚本：`tools/update-ipdb/update-ipdb.sh`
 
 1. 每天凌晨低峰期从 IP2Location/IP2Proxy 官方下载最新 **zip**。
 2. 解压 zip 到临时目录。
-3. 查找 `.BIN` 文件，复制到目标目录的临时文件，再用 `mv` 原子替换正式文件。
+3. 查找 `.BIN`/`.CSV` 文件，复制到目标目录的临时文件，再用 `mv` 原子替换正式文件。
 4. 清理临时目录。
-5. 更新完成后重启 `risk-engine` 服务加载新 BIN。
+5. 更新完成后重启 `risk-engine` 服务加载新 BIN/CSV。
 6. 多机部署时，可每台机器独立跑更新脚本，或从对象存储/NFS 同步。
 
 下载地址记录在 `.env`（本地）和 `.env.example`（模板）：

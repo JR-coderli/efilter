@@ -19,6 +19,7 @@ GitHub：https://github.com/JR-coderli/efilter
 - PostgreSQL（GORM）
 - Redis
 - IP2Location / IP2Proxy BIN 本地查询
+- IP2Proxy IPv6 CSV 内存加载查询
 - Nginx 反向代理
 
 ## 目录结构
