@@ -4,7 +4,8 @@
 
 1. 将本项目 push 到 GitHub（或你的 Git 仓库）。
 2. 确保 `.env.example` 中的下载 token 已替换为真实 token。
-3. 准备一台 CentOS 7/8/Stream 服务器。
+3. 准备一台 CentOS 7/8/Stream 服务器，并安装好宝塔面板及 Nginx。
+4. 确认宝塔 Nginx 路径为 `/www/server/nginx`。
 
 ## 快速部署
 
@@ -26,15 +27,34 @@ sudo bash tools/deploy/deploy.sh
 
 脚本会自动完成：
 
-- 安装依赖：Go、PostgreSQL、Redis、Nginx、unzip、curl
+- 安装依赖：Go、PostgreSQL、Redis、unzip、curl（不会安装 Nginx，请使用宝塔面板管理）
 - 初始化 PostgreSQL 数据库 `risk_engine`
 - 启动 Redis
 - 从 GitHub 拉取/克隆代码
 - 编译 `risk-engine`
 - 下载/更新 IP 数据库（IP2Location + IP2Proxy BIN + IP2Proxy IPv6 CSV）
 - 创建 systemd 服务 `efilter.service`
-- 配置 Nginx 反向代理
+- 输出宝塔面板 Nginx 反代配置提示（需手动在宝塔中添加站点）
 - 启动服务
+
+## 宝塔面板 Nginx 反代配置
+
+部署脚本不会自动修改 Nginx 配置（避免与宝塔面板冲突）。请按以下步骤手动配置：
+
+1. 登录宝塔面板，进入 **网站** -> **添加站点**：
+   - 域名：填写你的域名或服务器 IP
+   - PHP 版本：选择 **纯静态**
+2. 创建完成后，点击站点右侧的 **设置** -> **配置文件**。
+3. 在 `server { ... }` 块中，粘贴 `tools/deploy/nginx-bt.conf` 里的 `location /` 配置。
+4. 点击保存，宝塔会自动重载 Nginx。
+
+或者直接把 `tools/deploy/nginx-bt.conf` 中的内容复制到宝塔站点配置里。
+
+配置示例路径：
+
+```bash
+/opt/efilter/tools/deploy/nginx-bt.conf
+```
 
 ## 部署后管理
 
@@ -51,6 +71,12 @@ sudo journalctl -u efilter -f
 # 手动更新 IP 数据库
 sudo bash /opt/efilter/tools/update-ipdb/update-ipdb.sh
 sudo systemctl restart efilter
+
+# 查看 Nginx 配置是否正确
+/www/server/nginx/sbin/nginx -t
+
+# 通过宝塔面板重载 Nginx，或执行
+/etc/init.d/nginx reload
 
 # 设置定时自动更新 IP 数据库
 sudo crontab -e
