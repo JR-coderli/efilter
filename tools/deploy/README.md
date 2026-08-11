@@ -3,7 +3,7 @@
 ## 准备工作
 
 1. 将本项目 push 到 GitHub（或你的 Git 仓库）。
-2. 确保 `.env.production.example` 中的下载 token 已替换为真实 token。
+2. 确保 `.env.example` 中的下载 token 已替换为真实 token。
 3. 准备一台 CentOS 7/8/Stream 服务器。
 
 ## 快速部署
@@ -31,7 +31,7 @@ sudo bash tools/deploy/deploy.sh
 - 启动 Redis
 - 从 GitHub 拉取/克隆代码
 - 编译 `risk-engine`
-- 下载/更新 IP 数据库（IP2Location + IP2Proxy）
+- 下载/更新 IP 数据库（IP2Location + IP2Proxy BIN + IP2Proxy IPv6 CSV）
 - 创建 systemd 服务 `efilter.service`
 - 配置 Nginx 反向代理
 - 启动服务
@@ -67,10 +67,10 @@ sudo crontab -e
 - Redis：`localhost:6379`
 - 工作目录：`/opt/efilter/backend/risk-engine`
 
-如需修改数据库密码、Redis 端口等，请编辑：
+如需修改数据库密码、Redis 端口、IP 数据库下载地址等，请编辑：
 
 - `backend/risk-engine/configs/config.yaml`
-- `.env.production.example`
+- `.env.example`
 - `tools/deploy/deploy.sh` 顶部的配置项
 
 ## 安全建议
