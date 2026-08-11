@@ -13,33 +13,34 @@ import (
 
 // IPInfo is the unified result from both IP databases.
 type IPInfo struct {
-	IP           string  `json:"ip"`
-	Country      string  `json:"country"`
-	CountryLong  string  `json:"country_long"`
-	Region       string  `json:"region"`
-	City         string  `json:"city"`
-	Latitude     float32 `json:"latitude"`
-	Longitude    float32 `json:"longitude"`
-	Timezone     string  `json:"timezone"`
-	ISP          string  `json:"isp"`
-	ASN          string  `json:"asn"`
-	AS           string  `json:"as"`
-	Domain       string  `json:"domain"`
-	UsageType    string  `json:"usage_type"`
-	IsProxy      bool    `json:"is_proxy"`
-	ProxyType    string  `json:"proxy_type"`
-	IsVPN        bool    `json:"is_vpn"`
-	IsDatacenter bool    `json:"is_datacenter"`
-	IsTor        bool    `json:"is_tor"`
-	IsResidential bool   `json:"is_residential"`
-	IsMobile     bool    `json:"is_mobile"`
-	Threat       string  `json:"threat"`
-	FraudScore   string  `json:"fraud_score"`
+	IP            string  `json:"ip"`
+	Country       string  `json:"country"`
+	CountryLong   string  `json:"country_long"`
+	Region        string  `json:"region"`
+	City          string  `json:"city"`
+	Latitude      float32 `json:"latitude"`
+	Longitude     float32 `json:"longitude"`
+	Timezone      string  `json:"timezone"`
+	ISP           string  `json:"isp"`
+	ASN           string  `json:"asn"`
+	AS            string  `json:"as"`
+	Domain        string  `json:"domain"`
+	UsageType     string  `json:"usage_type"`
+	IsProxy       bool    `json:"is_proxy"`
+	ProxyType     string  `json:"proxy_type"`
+	IsVPN         bool    `json:"is_vpn"`
+	IsDatacenter  bool    `json:"is_datacenter"`
+	IsTor         bool    `json:"is_tor"`
+	IsResidential bool    `json:"is_residential"`
+	IsMobile      bool    `json:"is_mobile"`
+	Threat        string  `json:"threat"`
+	FraudScore    string  `json:"fraud_score"`
 }
 
 type IPDB struct {
 	loc *ip2location.DB
 	prx *ip2proxy.DB
+	csv *IP2ProxyCSV
 }
 
 func NewIPDB(cfg config.IPDBConfig) (*IPDB, error) {
@@ -58,6 +59,13 @@ func NewIPDB(cfg config.IPDBConfig) (*IPDB, error) {
 		}
 		db.prx = prx
 	}
+	if cfg.IP2ProxyIPv6CSV != "" {
+		csv, err := NewIP2ProxyCSV(cfg.IP2ProxyIPv6CSV)
+		if err != nil {
+			return nil, fmt.Errorf("open ip2proxy ipv6 csv failed: %w", err)
+		}
+		db.csv = csv
+	}
 	return db, nil
 }
 
@@ -68,6 +76,14 @@ func (d *IPDB) Close() {
 	if d.prx != nil {
 		_ = d.prx.Close()
 	}
+	if d.csv != nil {
+		d.csv.Close()
+	}
+}
+
+func isIPv6(ip string) bool {
+	parsed := net.ParseIP(ip)
+	return parsed != nil && parsed.To4() == nil
 }
 
 func normalizeIP(ip string) string {
@@ -138,6 +154,27 @@ func (d *IPDB) Query(ip string) (*IPInfo, error) {
 			info.IsMobile = containsAny(rec.UsageType, "MOB", "MOBILE") || containsAny(rec.ProxyType, "MOBILE")
 		} else {
 			prxErr = err
+		}
+	}
+
+	// IPv6 fallback: the free IP2Proxy BIN is IPv4-only, so use the CSV
+	// database for IPv6 proxy detection when the BIN did not detect one.
+	if d.csv != nil && isIPv6(ip) && !info.IsProxy {
+		isProxy, proxyType, country, err := d.csv.Query(ip)
+		if err == nil && isProxy {
+			info.IsProxy = true
+			info.ProxyType = clean(proxyType)
+			if info.Country == "" && country != "" {
+				info.Country = clean(country)
+			}
+			switch strings.ToUpper(proxyType) {
+			case "VPN":
+				info.IsVPN = true
+			case "TOR":
+				info.IsTor = true
+			case "DCH", "DATACENTER", "HOSTING":
+				info.IsDatacenter = true
+			}
 		}
 	}
 
