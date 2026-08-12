@@ -8,9 +8,11 @@ import (
 )
 
 type AppConfig struct {
-	Name string `mapstructure:"name"`
-	Mode string `mapstructure:"mode"`
-	Port int    `mapstructure:"port"`
+	Name    string   `mapstructure:"name"`
+	Mode    string   `mapstructure:"mode"`
+	Port    int      `mapstructure:"port"`
+	APIKey  string   `mapstructure:"api_key"`
+	APIKeys []string `mapstructure:"api_keys"`
 }
 
 type DatabaseConfig struct {

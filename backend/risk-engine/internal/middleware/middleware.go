@@ -18,7 +18,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 const (
@@ -55,7 +54,17 @@ func RequestID() gin.HandlerFunc {
 	}
 }
 
-func APIKeyAuth(db *gorm.DB) gin.HandlerFunc {
+func APIKeyAuth(cfg config.AppConfig) gin.HandlerFunc {
+	valid := make(map[string]struct{})
+	for _, k := range cfg.APIKeys {
+		if k != "" {
+			valid[k] = struct{}{}
+		}
+	}
+	if cfg.APIKey != "" && len(valid) == 0 {
+		valid[cfg.APIKey] = struct{}{}
+	}
+
 	return func(c *gin.Context) {
 		key := extractAPIKey(c)
 		if key == "" {
@@ -63,14 +72,13 @@ func APIKeyAuth(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		var ak models.APIKey
-		if err := db.Where("api_key = ? AND status = ?", key, 1).First(&ak).Error; err != nil {
+		if _, ok := valid[key]; !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "invalid api key"})
 			return
 		}
 
 		c.Set(CtxAPIKey, key)
-		c.Set(CtxAPIKeyID, ak.ID)
+		c.Set(CtxAPIKeyID, uint(0))
 		c.Next()
 	}
 }

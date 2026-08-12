@@ -58,7 +58,7 @@ func NewRouter(cfg *config.Config, db *gorm.DB, batcher *middleware.AccessLogBat
 
 	// Authenticated API group.
 	v1 := r.Group("/api/v1")
-	v1.Use(middleware.APIKeyAuth(db))
+	v1.Use(middleware.APIKeyAuth(cfg.App))
 	v1.Use(middleware.RateLimit(rdb, cfg.RateLimit))
 	{
 		v1.POST("/check", h.Check)

@@ -2,6 +2,12 @@ app:
   name: "risk-engine"
   mode: "debug" # debug / release
   port: 8080
+  # 默认 API Key，用于 /api/v1/check 和 /api/v1/results 的内存认证
+  api_key: "risk-engine-dev-key-2026"
+  # 如需多个 key，取消注释并配置列表（优先级高于 api_key）
+  # api_keys:
+  #   - "risk-engine-dev-key-2026"
+  #   - "another-key"
 
 # 本地开发使用 PostgreSQL（生产环境也建议用 PostgreSQL）
 # 如需切换回 SQLite：driver: sqlite，dsn: file:...
