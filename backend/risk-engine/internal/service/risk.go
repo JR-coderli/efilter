@@ -32,6 +32,8 @@ type CheckResult struct {
 	ISP           string `json:"isp"`
 	ASN           string `json:"asn"`
 	IsProxy       bool   `json:"is_proxy"`
+	ProxyType     string `json:"proxy_type,omitempty"`
+	ProxySource   string `json:"proxy_source,omitempty"`
 	IsVPN         bool   `json:"is_vpn"`
 	IsDatacenter  bool   `json:"is_datacenter"`
 	RiskScore     int    `json:"risk_score"`
@@ -111,6 +113,9 @@ func (s *RiskService) Filter(ctx context.Context, ip, targetCountries string) (*
 			details = append(details, "YES")
 		}
 		proxyHit = "proxy:yes(" + strings.Join(details, "/") + ")"
+	}
+	if info.ProxySource != "" {
+		proxyHit += "[" + info.ProxySource + "]"
 	}
 
 	// If proxy/VPN/Tor/datacenter -> block.
@@ -205,6 +210,8 @@ func (s *RiskService) buildResult(req CheckRequest, info *database.IPInfo, score
 		ISP:          info.ISP,
 		ASN:          info.ASN,
 		IsProxy:      info.IsProxy,
+		ProxyType:    info.ProxyType,
+		ProxySource:  info.ProxySource,
 		IsVPN:        info.IsVPN,
 		IsDatacenter: info.IsDatacenter,
 		RiskScore:    score,

@@ -28,6 +28,7 @@ type IPInfo struct {
 	UsageType     string  `json:"usage_type"`
 	IsProxy       bool    `json:"is_proxy"`
 	ProxyType     string  `json:"proxy_type"`
+	ProxySource   string  `json:"proxy_source"`
 	IsVPN         bool    `json:"is_vpn"`
 	IsDatacenter  bool    `json:"is_datacenter"`
 	IsTor         bool    `json:"is_tor"`
@@ -141,6 +142,9 @@ func (d *IPDB) Query(ip string) (*IPInfo, error) {
 				info.ASN = clean(rec.Asn)
 			}
 			info.IsProxy = rec.IsProxy == 1
+			if info.IsProxy {
+				info.ProxySource = "BIN"
+			}
 			info.ProxyType = clean(rec.ProxyType)
 			info.Domain = clean(rec.Domain)
 			info.UsageType = clean(rec.UsageType)
@@ -163,6 +167,7 @@ func (d *IPDB) Query(ip string) (*IPInfo, error) {
 		isProxy, proxyType, country, err := d.csv.Query(ip)
 		if err == nil && isProxy {
 			info.IsProxy = true
+			info.ProxySource = "CSV"
 			info.ProxyType = clean(proxyType)
 			if info.Country == "" && country != "" {
 				info.Country = clean(country)
