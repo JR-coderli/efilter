@@ -36,7 +36,8 @@ func main() {
 
 	found := 0
 	for i, r := range records {
-		probe := midIP6(r.from, r.to)
+		// Prefer using the range start as the probe to avoid midpoint bugs.
+		probe := r.from
 		ip := net.IP(probe[:]).String()
 
 		// Skip IPv4-mapped IPv6 ::ffff:x.x.x.x
@@ -48,7 +49,8 @@ func main() {
 		binHit := err == nil && binRec.IsProxy == 1
 
 		if !binHit {
-			fmt.Printf("CSV-only hit #%d (CSV row %d): %s proxy_type=%s\n", found+1, i, ip, r.proxyType)
+			toIP := net.IP(r.to[:]).String()
+			fmt.Printf("CSV-only hit #%d (CSV row %d): %s - %s proxy_type=%s\n", found+1, i, ip, toIP, r.proxyType)
 			fmt.Printf("  curl -s -X POST http://127.0.0.1:8080/api/v1/check -H 'X-API-Key: risk-engine-dev-key-2026' -H 'Content-Type: application/json' -d '{\"ip\":\"%s\"}'\n", ip)
 			found++
 			if found >= 10 {
