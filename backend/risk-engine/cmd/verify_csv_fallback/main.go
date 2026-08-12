@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	"risk-engine/internal/database"
+
 	ip2proxy "github.com/ip2location/ip2proxy-go/v4"
 )
 
@@ -23,6 +25,27 @@ func main() {
 	binPath := "../../binfiles/IP2PROXY-LITE-PX2.BIN/IP2PROXY-LITE-PX2.BIN"
 	csvPath := "../../binfiles/IP2PROXY-LITE-PX2.IPV6.CSV/IP2PROXY-LITE-PX2.IPV6.CSV"
 
+	csvDB, err := database.NewIP2ProxyCSV(csvPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "open CSV failed: %v\n", err)
+		os.Exit(1)
+	}
+	defer csvDB.Close()
+
+	// Direct CSV query tests using the loaded module.
+	testIPs := []string{
+		"2001:41d0:8:227::",
+		"2a02:6ea0:c731::8001",
+		"2001:288:66ae:1:fc6b:7f92:5c51:e06b",
+		"::ffff:1.0.19.98",
+		"::ffff:1.0.19.240",
+	}
+	fmt.Println("Direct CSV query results:")
+	for _, ip := range testIPs {
+		isProxy, proxyType, country, err := csvDB.Query(ip)
+		fmt.Printf("  %s -> isProxy=%v type=%s country=%s err=%v\n", ip, isProxy, proxyType, country, err)
+	}
+
 	binDB, err := ip2proxy.OpenDB(binPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "open BIN failed: %v\n", err)
@@ -32,7 +55,7 @@ func main() {
 	fmt.Println("BIN opened")
 
 	records := loadCSV(csvPath)
-	fmt.Printf("CSV loaded %d records\n", len(records))
+	fmt.Printf("CSV loaded %d raw records\n", len(records))
 
 	found := 0
 	for i, r := range records {
@@ -129,17 +152,6 @@ func compareIP6(a, b [16]byte) int {
 		}
 	}
 	return 0
-}
-
-func midIP6(from, to [16]byte) [16]byte {
-	var out [16]byte
-	carry := 0
-	for i := 15; i >= 0; i-- {
-		sum := int(from[i]) + int(to[i]) + carry
-		out[i] = byte(sum / 2)
-		carry = (sum % 2) * 256
-	}
-	return out
 }
 
 func isIPv4Mapped(b [16]byte) bool {

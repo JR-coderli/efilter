@@ -115,13 +115,23 @@ func (c *IP2ProxyCSV) Query(ip string) (bool, string, string, error) {
 		return compareIPv6Bytes(c.records[i].from, ipBytes) >= 0
 	})
 
-	// The matching interval, if any, ends at idx-1 because records[idx].from
-	// is the first range start not less than the IP.
-	if idx > 0 {
-		rec := c.records[idx-1]
-		if compareIPv6Bytes(rec.from, ipBytes) <= 0 && compareIPv6Bytes(ipBytes, rec.to) <= 0 {
-			return true, rec.proxyType, rec.country, nil
+	// Check the candidate at idx (from == ip) and idx-1 (ip falls inside range).
+	check := func(i int) (bool, string, string) {
+		if i < 0 || i >= len(c.records) {
+			return false, "", ""
 		}
+		rec := c.records[i]
+		if compareIPv6Bytes(rec.from, ipBytes) <= 0 && compareIPv6Bytes(ipBytes, rec.to) <= 0 {
+			return true, rec.proxyType, rec.country
+		}
+		return false, "", ""
+	}
+
+	if found, pt, cc := check(idx); found {
+		return true, pt, cc, nil
+	}
+	if found, pt, cc := check(idx - 1); found {
+		return true, pt, cc, nil
 	}
 	return false, "", "", nil
 }
