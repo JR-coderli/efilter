@@ -115,13 +115,13 @@ func (s *RiskService) Filter(ctx context.Context, ip, targetCountries string) (*
 
 	// If proxy/VPN/Tor/datacenter -> block.
 	if info.IsProxy || info.IsVPN || info.IsTor || info.IsDatacenter {
-		score, action, ruleHit := s.calculateScore(ctx, info)
+		score, action, _ := s.calculateScore(ctx, info)
 		return &FilterResult{
 			Result:    false,
 			Country:   country,
 			RiskScore: score,
 			Action:    action,
-			RuleHit:   ruleHit + " & " + proxyHit,
+			RuleHit:   proxyHit,
 		}, nil
 	}
 
