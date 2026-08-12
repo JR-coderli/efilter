@@ -118,20 +118,16 @@ func seedDefaultData(db *gorm.DB) error {
 		}
 	}
 
-	// Seed built-in risk rules so the API returns meaningful scores out of the box.
-	var ruleCount int64
-	db.Model(&models.RiskRule{}).Count(&ruleCount)
-	if ruleCount == 0 {
-		rules := []models.RiskRule{
-			{Name: "vpn", Condition: "is_vpn == true", Score: 30, Action: "review", Status: 1},
-			{Name: "proxy", Condition: "is_proxy == true", Score: 40, Action: "review", Status: 1},
-			{Name: "datacenter", Condition: "is_datacenter == true", Score: 30, Action: "review", Status: 1},
-			{Name: "tor", Condition: "is_tor == true", Score: 80, Action: "block", Status: 1},
-		}
-		if err := db.Create(&rules).Error; err != nil {
-			return err
-		}
-	}
+	// Remove legacy default rules that duplicate the built-in scoring in
+	// service.calculateScore. Keeping them caused rule_hit to show duplicated
+	// hits such as "proxy,proxy".
+	db.Where("name IN ? AND condition IN ?",
+		[]string{"vpn", "proxy", "datacenter", "tor"},
+		[]string{"is_vpn == true", "is_proxy == true", "is_datacenter == true", "is_tor == true"},
+	).Delete(&models.RiskRule{})
+
+	// Built-in scoring rules are now hard-coded in service.calculateScore;
+	// do not seed duplicates.
 
 	return nil
 }
