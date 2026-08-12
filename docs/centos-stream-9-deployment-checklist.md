@@ -120,7 +120,7 @@ sudo bash tools/update-ipdb/update-ipdb.sh
 
 **服务配置参考：**
 
-```ini
+cat > /etc/systemd/system/efilter.service <<'EOF'
 [Unit]
 Description=efilter risk engine service
 After=network.target postgresql.service redis.service
@@ -136,8 +136,13 @@ Environment="GIN_MODE=release"
 
 [Install]
 WantedBy=multi-user.target
-```
+EOF
 
+systemctl daemon-reload
+systemctl enable efilter
+systemctl start efilter
+sleep 2
+systemctl status efilter --no-pager
 ---
 
 ## 十、Nginx 反向代理（宝塔）

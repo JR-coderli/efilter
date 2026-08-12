@@ -182,7 +182,11 @@ func AccessLog(batcher *AccessLogBatcher, log *zap.Logger) gin.HandlerFunc {
 
 		logger.Info("access", fields...)
 
-		// Persist to PostgreSQL asynchronously via batcher.
+		// Persist to PostgreSQL asynchronously via batcher (only API requests).
+		if !strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			return
+		}
+
 		respBody := blw.body.String()
 		if len(respBody) > 4096 {
 			respBody = respBody[:4096]
