@@ -141,6 +141,10 @@ func (d *IPDB) Query(ip string) (*IPInfo, error) {
 			if info.ASN == "" {
 				info.ASN = clean(rec.Asn)
 			}
+			// TEMP: disable IPv6 proxy detection from BIN to validate CSV fallback.
+			if isIPv6(ip) {
+				rec.IsProxy = 0
+			}
 			info.IsProxy = rec.IsProxy == 1
 			if info.IsProxy {
 				info.ProxySource = "BIN"
