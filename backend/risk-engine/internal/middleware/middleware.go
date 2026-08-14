@@ -180,6 +180,27 @@ func AccessLog(batcher *AccessLogBatcher, log *zap.Logger) gin.HandlerFunc {
 			fields = append(fields, zap.String("rule_hit", ruleHit))
 		}
 
+		domain := ""
+		if v, ok := c.Get("log_domain"); ok {
+			domain = toString(v)
+		}
+		pagePath := ""
+		if v, ok := c.Get("log_page_path"); ok {
+			pagePath = toString(v)
+		}
+		referer := ""
+		if v, ok := c.Get("log_referer"); ok {
+			referer = toString(v)
+		}
+		ua := c.Request.UserAgent()
+		if v, ok := c.Get("log_user_agent"); ok {
+			ua = toString(v)
+		}
+		acceptLang := ""
+		if v, ok := c.Get("log_accept_language"); ok {
+			acceptLang = toString(v)
+		}
+
 		logger.Info("access", fields...)
 
 		// Persist to PostgreSQL asynchronously via batcher (only API requests).
@@ -193,20 +214,24 @@ func AccessLog(batcher *AccessLogBatcher, log *zap.Logger) gin.HandlerFunc {
 		}
 
 		batcher.Add(models.AccessLog{
-			RequestID:    getString(c, CtxRequestID),
-			ClientIP:     c.ClientIP(),
-			Method:       c.Request.Method,
-			Path:         c.Request.URL.Path,
-			UserAgent:    c.Request.UserAgent(),
-			Country:      country,
-			RiskScore:    score,
-			Action:       action,
-			RuleHit:      ruleHit,
-			RequestBody:  reqBody,
-			ResponseBody: respBody,
-			StatusCode:   c.Writer.Status(),
-			ResponseTime: duration.Milliseconds(),
-			CreatedAt:    time.Now(),
+			RequestID:      getString(c, CtxRequestID),
+			ClientIP:       c.ClientIP(),
+			Method:         c.Request.Method,
+			Path:           c.Request.URL.Path,
+			Domain:         domain,
+			PagePath:       pagePath,
+			Referer:        referer,
+			UserAgent:      ua,
+			AcceptLanguage: acceptLang,
+			Country:        country,
+			RiskScore:      score,
+			Action:         action,
+			RuleHit:        ruleHit,
+			RequestBody:    reqBody,
+			ResponseBody:   respBody,
+			StatusCode:     c.Writer.Status(),
+			ResponseTime:   duration.Milliseconds(),
+			CreatedAt:      time.Now(),
 		})
 	}
 }

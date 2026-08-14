@@ -46,19 +46,23 @@ type IPWhitelist struct {
 }
 
 type AccessLog struct {
-	ID           uint      `gorm:"primaryKey" json:"id"`
-	RequestID    string    `gorm:"size:64;index" json:"request_id"`
-	ClientIP     string    `gorm:"size:64;index" json:"client_ip"`
-	Method       string    `gorm:"size:16" json:"method"`
-	Path         string    `gorm:"size:255" json:"path"`
-	UserAgent    string    `gorm:"type:text" json:"user_agent"`
-	Country      string    `gorm:"size:8;index" json:"country"`
-	RiskScore    int       `json:"risk_score"`
-	Action       string    `gorm:"size:16" json:"action"`
-	RuleHit      string    `gorm:"size:255" json:"rule_hit"`
-	RequestBody  string    `gorm:"type:text" json:"request_body"`
-	ResponseBody string    `gorm:"type:text" json:"response_body"`
-	StatusCode   int       `json:"status_code"`
-	ResponseTime int64     `gorm:"index" json:"response_time_ms"`
-	CreatedAt    time.Time `gorm:"index" json:"created_at"`
+	ID             uint      `gorm:"primaryKey" json:"id"`
+	RequestID      string    `gorm:"size:64;index" json:"request_id"`
+	ClientIP       string    `gorm:"size:64;index" json:"client_ip"`
+	Method         string    `gorm:"size:16" json:"method"`
+	Path           string    `gorm:"size:255" json:"path"`
+	Domain         string    `gorm:"size:255" json:"domain"`
+	PagePath       string    `gorm:"size:512" json:"page_path"`
+	Referer        string    `gorm:"type:text" json:"referer"`
+	UserAgent      string    `gorm:"type:text" json:"user_agent"`
+	AcceptLanguage string    `gorm:"type:text" json:"accept_language"`
+	Country        string    `gorm:"size:8;index" json:"country"`
+	RiskScore      int       `json:"risk_score"`
+	Action         string    `gorm:"size:16" json:"action"`
+	RuleHit        string    `gorm:"size:255" json:"rule_hit"`
+	RequestBody    string    `gorm:"type:text" json:"request_body"`
+	ResponseBody   string    `gorm:"type:text" json:"response_body"`
+	StatusCode     int       `json:"status_code"`
+	ResponseTime   int64     `gorm:"index" json:"response_time_ms"`
+	CreatedAt      time.Time `gorm:"index" json:"created_at"`
 }

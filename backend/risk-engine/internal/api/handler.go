@@ -67,8 +67,13 @@ func (h *Handler) Health(c *gin.Context) {
 
 // ResultsRequest matches the x-www-form-urlencoded fields sent by the PHP file.
 type ResultsRequest struct {
-	IP      string `form:"ip" binding:"required"`
-	Country string `form:"country"`
+	IP             string `form:"ip" binding:"required"`
+	Country        string `form:"country"`
+	Domain         string `form:"domain"`
+	PagePath       string `form:"path"`
+	Referer        string `form:"referer"`
+	UserAgent      string `form:"user_agent"`
+	AcceptLanguage string `form:"accept_language"`
 }
 
 // Results returns {"result": true/false} for the PHP front-end filter.
@@ -90,6 +95,14 @@ func (h *Handler) Results(c *gin.Context) {
 	c.Set("log_risk_score", result.RiskScore)
 	c.Set("log_action", result.Action)
 	c.Set("log_rule_hit", result.RuleHit)
+
+	c.Set("log_domain", req.Domain)
+	c.Set("log_page_path", req.PagePath)
+	c.Set("log_referer", req.Referer)
+	if req.UserAgent != "" {
+		c.Set("log_user_agent", req.UserAgent)
+	}
+	c.Set("log_accept_language", req.AcceptLanguage)
 
 	c.JSON(http.StatusOK, gin.H{"result": result.Result})
 }
@@ -153,8 +166,8 @@ func (h *Handler) Logs(c *gin.Context) {
 	if q.Keyword != "" {
 		pattern := "%" + q.Keyword + "%"
 		listQuery = listQuery.Where(
-			"client_ip ILIKE ? OR country ILIKE ? OR rule_hit ILIKE ? OR path ILIKE ? OR action ILIKE ? OR request_body ILIKE ? OR response_body ILIKE ?",
-			pattern, pattern, pattern, pattern, pattern, pattern, pattern,
+			"client_ip ILIKE ? OR country ILIKE ? OR rule_hit ILIKE ? OR path ILIKE ? OR action ILIKE ? OR domain ILIKE ? OR page_path ILIKE ? OR referer ILIKE ? OR user_agent ILIKE ? OR accept_language ILIKE ? OR request_body ILIKE ? OR response_body ILIKE ?",
+			pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern,
 		)
 	}
 
