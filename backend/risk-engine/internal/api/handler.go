@@ -2,12 +2,14 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"risk-engine/internal/middleware"
 	"risk-engine/internal/models"
 	"risk-engine/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type Handler struct {
@@ -94,11 +96,20 @@ func (h *Handler) Results(c *gin.Context) {
 
 // LogsQuery is the query parameters for fetching access logs.
 type LogsQuery struct {
-	Limit        int    `form:"limit,default=100"`
-	Offset       int    `form:"offset"`
-	IP           string `form:"ip"`
-	Path         string `form:"path"`
-	ExcludePath  string `form:"exclude_path"`
+	Limit       int    `form:"limit,default=100"`
+	Offset      int    `form:"offset"`
+	IP          string `form:"ip"`
+	Keyword     string `form:"keyword"`
+	Path        string `form:"path"`
+	ExcludePath string `form:"exclude_path"`
+}
+
+// logStats holds aggregate counts for the dashboard cards.
+type logStats struct {
+	Total     int64 `json:"total"`
+	Allow     int64 `json:"allow"`
+	Deny      int64 `json:"deny"`
+	HourCount int64 `json:"hour_count"`
 }
 
 // Logs returns recent access logs for the dashboard.
@@ -111,8 +122,7 @@ func (h *Handler) Logs(c *gin.Context) {
 		q.Limit = 100
 	}
 
-	var logs []models.AccessLog
-	dbQuery := h.riskService.DB().WithContext(c.Request.Context()).Order("created_at DESC")
+	dbQuery := h.riskService.DB().WithContext(c.Request.Context()).Model(&models.AccessLog{})
 	if q.IP != "" {
 		dbQuery = dbQuery.Where("client_ip = ?", q.IP)
 	}
@@ -123,13 +133,30 @@ func (h *Handler) Logs(c *gin.Context) {
 		dbQuery = dbQuery.Where("path != ?", q.ExcludePath)
 	}
 
-	var total int64
-	if err := dbQuery.Model(&models.AccessLog{}).Count(&total).Error; err != nil {
+	stats, err := computeLogStats(dbQuery)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, response{Code: 500, Message: err.Error()})
 		return
 	}
 
-	if err := dbQuery.Limit(q.Limit).Offset(q.Offset).Find(&logs).Error; err != nil {
+	var total int64
+	if err := dbQuery.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, response{Code: 500, Message: err.Error()})
+		return
+	}
+
+	// Keyword search is applied only to the log list, not the top-level stats.
+	listQuery := dbQuery.Session(&gorm.Session{}).Order("created_at DESC")
+	if q.Keyword != "" {
+		pattern := "%" + q.Keyword + "%"
+		listQuery = listQuery.Where(
+			"client_ip ILIKE ? OR country ILIKE ? OR rule_hit ILIKE ? OR path ILIKE ? OR request_body ILIKE ? OR response_body ILIKE ?",
+			pattern, pattern, pattern, pattern, pattern, pattern,
+		)
+	}
+
+	var logs []models.AccessLog
+	if err := listQuery.Limit(q.Limit).Offset(q.Offset).Find(&logs).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, response{Code: 500, Message: err.Error()})
 		return
 	}
@@ -139,7 +166,38 @@ func (h *Handler) Logs(c *gin.Context) {
 		Message: "ok",
 		Data: gin.H{
 			"total": total,
+			"stats": stats,
 			"logs":  logs,
 		},
 	})
+}
+
+func computeLogStats(query *gorm.DB) (logStats, error) {
+	var stats logStats
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return stats, err
+	}
+	stats.Total = total
+
+	var allow int64
+	if err := query.Where("action IN ?", []string{"allow", "safe"}).Count(&allow).Error; err != nil {
+		return stats, err
+	}
+	stats.Allow = allow
+
+	var deny int64
+	if err := query.Where("action IN ?", []string{"block", "review"}).Count(&deny).Error; err != nil {
+		return stats, err
+	}
+	stats.Deny = deny
+
+	hourAgo := time.Now().Add(-1 * time.Hour)
+	var hourCount int64
+	if err := query.Where("created_at > ?", hourAgo).Count(&hourCount).Error; err != nil {
+		return stats, err
+	}
+	stats.HourCount = hourCount
+
+	return stats, nil
 }

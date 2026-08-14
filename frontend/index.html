@@ -136,7 +136,7 @@
     </div>
 
     <div class="filters">
-        <input type="text" id="filter-ip" placeholder="IP 筛选">
+        <input type="text" id="filter-keyword" placeholder="搜索关键词（IP / 国家 / 规则 / 接口 / 请求内容）">
         <select id="filter-path">
             <option value="">全部接口</option>
             <option value="/api/v1/check">/api/v1/check</option>
@@ -241,25 +241,12 @@
             el.innerHTML = html;
         }
 
-        function renderStats(logs) {
-            document.getElementById('stat-total').textContent = total;
-            let allow = 0, deny = 0;
-            const hourAgo = Date.now() - 3600000;
-            let hourCount = 0;
-            logs.forEach(log => {
-                const result = tryParseResult(log.response_body);
-                let blocked = false;
-                if (result && typeof result.result === 'boolean') {
-                    blocked = !result.result;
-                } else if (result && result.data && result.data.action) {
-                    blocked = result.data.action === 'block';
-                }
-                if (blocked) deny++; else allow++;
-                if (new Date(log.created_at).getTime() > hourAgo) hourCount++;
-            });
-            document.getElementById('stat-allow').textContent = allow;
-            document.getElementById('stat-deny').textContent = deny;
-            document.getElementById('stat-hour').textContent = hourCount;
+        function renderStats(stats) {
+            stats = stats || {};
+            document.getElementById('stat-total').textContent = stats.total != null ? stats.total : total;
+            document.getElementById('stat-allow').textContent = stats.allow != null ? stats.allow : '-';
+            document.getElementById('stat-deny').textContent = stats.deny != null ? stats.deny : '-';
+            document.getElementById('stat-hour').textContent = stats.hour_count != null ? stats.hour_count : '-';
         }
 
         function renderLogs(logs) {
@@ -294,15 +281,14 @@
                     <td><div class="json" title="${(log.response_body || '').replace(/"/g, '&quot;')}">${log.response_body || '-'}</div></td>
                 </tr>`;
             }).join('');
-            renderStats(logs);
         }
 
         async function loadLogs(page = 0) {
             currentPage = page;
-            const ip = document.getElementById('filter-ip').value.trim();
+            const keyword = document.getElementById('filter-keyword').value.trim();
             const path = document.getElementById('filter-path').value;
             let url = `/api/v1/logs?limit=${pageSize}&offset=${page * pageSize}`;
-            if (ip) url += `&ip=${encodeURIComponent(ip)}`;
+            if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
             if (path) url += `&path=${encodeURIComponent(path)}`;
             url += `&exclude_path=${encodeURIComponent('/api/v1/logs')}`;
 
@@ -312,6 +298,7 @@
                 if (data.code !== 0) throw new Error(data.message);
                 total = data.data.total;
                 renderLogs(data.data.logs);
+                renderStats(data.data.stats);
                 renderPagination();
             } catch (err) {
                 document.getElementById('logs-body').innerHTML = `<tr><td colspan="10" class="empty">加载失败：${err.message}</td></tr>`;
@@ -319,7 +306,7 @@
         }
 
         function resetFilters() {
-            document.getElementById('filter-ip').value = '';
+            document.getElementById('filter-keyword').value = '';
             document.getElementById('filter-path').value = '';
             loadLogs(0);
         }
