@@ -122,31 +122,34 @@ func (h *Handler) Logs(c *gin.Context) {
 		q.Limit = 100
 	}
 
-	dbQuery := h.riskService.DB().WithContext(c.Request.Context()).Model(&models.AccessLog{})
-	if q.IP != "" {
-		dbQuery = dbQuery.Where("client_ip = ?", q.IP)
-	}
-	if q.Path != "" {
-		dbQuery = dbQuery.Where("path = ?", q.Path)
-	}
-	if q.ExcludePath != "" {
-		dbQuery = dbQuery.Where("path != ?", q.ExcludePath)
+	baseQuery := func() *gorm.DB {
+		query := h.riskService.DB().WithContext(c.Request.Context()).Model(&models.AccessLog{})
+		if q.IP != "" {
+			query = query.Where("client_ip = ?", q.IP)
+		}
+		if q.Path != "" {
+			query = query.Where("path = ?", q.Path)
+		}
+		if q.ExcludePath != "" {
+			query = query.Where("path != ?", q.ExcludePath)
+		}
+		return query
 	}
 
-	stats, err := computeLogStats(dbQuery)
+	stats, err := computeLogStats(baseQuery)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, response{Code: 500, Message: err.Error()})
 		return
 	}
 
 	var total int64
-	if err := dbQuery.Count(&total).Error; err != nil {
+	if err := baseQuery().Count(&total).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, response{Code: 500, Message: err.Error()})
 		return
 	}
 
 	// Keyword search is applied only to the log list, not the top-level stats.
-	listQuery := dbQuery.Session(&gorm.Session{}).Order("created_at DESC")
+	listQuery := baseQuery().Order("created_at DESC")
 	if q.Keyword != "" {
 		pattern := "%" + q.Keyword + "%"
 		listQuery = listQuery.Where(
@@ -172,29 +175,29 @@ func (h *Handler) Logs(c *gin.Context) {
 	})
 }
 
-func computeLogStats(query *gorm.DB) (logStats, error) {
+func computeLogStats(baseQuery func() *gorm.DB) (logStats, error) {
 	var stats logStats
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	if err := baseQuery().Count(&total).Error; err != nil {
 		return stats, err
 	}
 	stats.Total = total
 
 	var allow int64
-	if err := query.Where("action IN ?", []string{"allow", "safe"}).Count(&allow).Error; err != nil {
+	if err := baseQuery().Where("action IN ?", []string{"allow", "safe"}).Count(&allow).Error; err != nil {
 		return stats, err
 	}
 	stats.Allow = allow
 
 	var deny int64
-	if err := query.Where("action IN ?", []string{"block", "review"}).Count(&deny).Error; err != nil {
+	if err := baseQuery().Where("action IN ?", []string{"block", "review"}).Count(&deny).Error; err != nil {
 		return stats, err
 	}
 	stats.Deny = deny
 
 	hourAgo := time.Now().Add(-1 * time.Hour)
 	var hourCount int64
-	if err := query.Where("created_at > ?", hourAgo).Count(&hourCount).Error; err != nil {
+	if err := baseQuery().Where("created_at > ?", hourAgo).Count(&hourCount).Error; err != nil {
 		return stats, err
 	}
 	stats.HourCount = hourCount
