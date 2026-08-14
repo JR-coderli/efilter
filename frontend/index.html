@@ -108,8 +108,28 @@
         .path-health { background: #e8f5e9; color: #1b5e20; }
         .path-default { background: #f1f1f1; color: #333; }
         .empty { text-align: center; padding: 40px; color: #888; }
-        .json { font-family: monospace; font-size: 12px; color: #666; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        code { background: #f1f1f1; padding: 2px 4px; border-radius: 3px; }
+        .quick-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .quick-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background: #fff;
+            color: #555;
+        }
+        .quick-tag:hover {
+            background: #f0f0f0;
+        }
+        .quick-tag.allow { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .quick-tag.review { background: #fff3cd; color: #856404; border-color: #ffeeba; }
+        .quick-tag.block { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
     </style>
 </head>
 <body>
@@ -136,7 +156,7 @@
     </div>
 
     <div class="filters">
-        <input type="text" id="filter-keyword" placeholder="搜索关键词（IP / 国家 / 规则 / 接口 / 请求内容）">
+        <input type="text" id="filter-keyword" placeholder="搜索关键词（IP / 国家 / 规则 / 接口 / 动作 / 请求内容）">
         <select id="filter-path">
             <option value="">全部接口</option>
             <option value="/api/v1/check">/api/v1/check</option>
@@ -144,6 +164,11 @@
         </select>
         <button onclick="loadLogs(0)">查询</button>
         <button onclick="resetFilters()">重置</button>
+        <div class="quick-tags">
+            <span class="quick-tag allow" onclick="setKeyword('allow')">allow</span>
+            <span class="quick-tag review" onclick="setKeyword('review')">review</span>
+            <span class="quick-tag block" onclick="setKeyword('block')">block</span>
+        </div>
         <span style="color:#888;font-size:13px;">自动刷新：<span id="countdown">30</span>s</span>
     </div>
 
@@ -308,6 +333,11 @@
         function resetFilters() {
             document.getElementById('filter-keyword').value = '';
             document.getElementById('filter-path').value = '';
+            loadLogs(0);
+        }
+
+        function setKeyword(kw) {
+            document.getElementById('filter-keyword').value = kw;
             loadLogs(0);
         }
 

@@ -153,8 +153,8 @@ func (h *Handler) Logs(c *gin.Context) {
 	if q.Keyword != "" {
 		pattern := "%" + q.Keyword + "%"
 		listQuery = listQuery.Where(
-			"client_ip ILIKE ? OR country ILIKE ? OR rule_hit ILIKE ? OR path ILIKE ? OR request_body ILIKE ? OR response_body ILIKE ?",
-			pattern, pattern, pattern, pattern, pattern, pattern,
+			"client_ip ILIKE ? OR country ILIKE ? OR rule_hit ILIKE ? OR path ILIKE ? OR action ILIKE ? OR request_body ILIKE ? OR response_body ILIKE ?",
+			pattern, pattern, pattern, pattern, pattern, pattern, pattern,
 		)
 	}
 
