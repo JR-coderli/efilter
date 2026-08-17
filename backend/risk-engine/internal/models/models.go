@@ -56,7 +56,11 @@ type AccessLog struct {
 	Referer        string    `gorm:"type:text" json:"referer"`
 	UserAgent      string    `gorm:"type:text" json:"user_agent"`
 	AcceptLanguage string    `gorm:"type:text" json:"accept_language"`
-	Country        string    `gorm:"size:8;index" json:"country"`
+	Country          string    `gorm:"size:8;index" json:"country"`
+	CountryIP2Location string   `gorm:"size:8;index" json:"country_ip2location"`
+	CountryMaxMind   string    `gorm:"size:8;index" json:"country_maxmind"`
+	MaxCity          string    `gorm:"size:64" json:"max_city"`
+	MaxASN           string    `gorm:"size:32" json:"max_asn"`
 	RiskScore      int       `json:"risk_score"`
 	Action         string    `gorm:"size:16" json:"action"`
 	RuleHit        string    `gorm:"size:255" json:"rule_hit"`

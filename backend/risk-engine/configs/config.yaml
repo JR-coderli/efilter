@@ -18,7 +18,7 @@ database:
   max_idle_conns: 20
 
 redis:
-  addr: "127.0.0.1:6379"
+  addr: "127.0.0.1:6380"
   password: ""
   db: 5
   pool_size: 20

@@ -165,6 +165,26 @@ func AccessLog(batcher *AccessLogBatcher, log *zap.Logger) gin.HandlerFunc {
 			country = toString(v)
 			fields = append(fields, zap.String("country", country))
 		}
+		countryIP2L := ""
+		if v, ok := c.Get("log_country_ip2location"); ok {
+			countryIP2L = toString(v)
+			fields = append(fields, zap.String("country_ip2location", countryIP2L))
+		}
+		countryMaxMind := ""
+		if v, ok := c.Get("log_country_maxmind"); ok {
+			countryMaxMind = toString(v)
+			fields = append(fields, zap.String("country_maxmind", countryMaxMind))
+		}
+		maxCity := ""
+		if v, ok := c.Get("log_max_city"); ok {
+			maxCity = toString(v)
+			fields = append(fields, zap.String("max_city", maxCity))
+		}
+		maxASN := ""
+		if v, ok := c.Get("log_max_asn"); ok {
+			maxASN = toString(v)
+			fields = append(fields, zap.String("max_asn", maxASN))
+		}
 		score := 0
 		if v, ok := c.Get("log_risk_score"); ok {
 			score = toInt(v)
@@ -214,24 +234,28 @@ func AccessLog(batcher *AccessLogBatcher, log *zap.Logger) gin.HandlerFunc {
 		}
 
 		batcher.Add(models.AccessLog{
-			RequestID:      getString(c, CtxRequestID),
-			ClientIP:       c.ClientIP(),
-			Method:         c.Request.Method,
-			Path:           c.Request.URL.Path,
-			Domain:         domain,
-			PagePath:       pagePath,
-			Referer:        referer,
-			UserAgent:      ua,
-			AcceptLanguage: acceptLang,
-			Country:        country,
-			RiskScore:      score,
-			Action:         action,
-			RuleHit:        ruleHit,
-			RequestBody:    reqBody,
-			ResponseBody:   respBody,
-			StatusCode:     c.Writer.Status(),
-			ResponseTime:   duration.Milliseconds(),
-			CreatedAt:      time.Now(),
+			RequestID:          getString(c, CtxRequestID),
+			ClientIP:           c.ClientIP(),
+			Method:             c.Request.Method,
+			Path:               c.Request.URL.Path,
+			Domain:             domain,
+			PagePath:           pagePath,
+			Referer:            referer,
+			UserAgent:          ua,
+			AcceptLanguage:     acceptLang,
+			Country:            country,
+			CountryIP2Location: countryIP2L,
+			CountryMaxMind:     countryMaxMind,
+			MaxCity:            maxCity,
+			MaxASN:             maxASN,
+			RiskScore:          score,
+			Action:             action,
+			RuleHit:            ruleHit,
+			RequestBody:        reqBody,
+			ResponseBody:       respBody,
+			StatusCode:         c.Writer.Status(),
+			ResponseTime:       duration.Milliseconds(),
+			CreatedAt:          time.Now(),
 		})
 	}
 }

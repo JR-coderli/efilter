@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 
 	"github.com/oschwald/geoip2-golang"
 )
@@ -37,30 +38,42 @@ func NewMaxMindDB(paths MaxMindPaths) (*MaxMindDB, error) {
 	opened := 0
 
 	if paths.Country != "" {
-		reader, err := geoip2.Open(paths.Country)
-		if err != nil {
-			return nil, fmt.Errorf("open maxmind country db failed: %w", err)
+		if _, err := os.Stat(paths.Country); err != nil {
+			log.Printf("[maxmind] skipping country db: %v", err)
+		} else {
+			reader, err := geoip2.Open(paths.Country)
+			if err != nil {
+				return nil, fmt.Errorf("open maxmind country db failed: %w", err)
+			}
+			db.country = reader
+			opened++
 		}
-		db.country = reader
-		opened++
 	}
 	if paths.City != "" {
-		reader, err := geoip2.Open(paths.City)
-		if err != nil {
-			_ = db.Close()
-			return nil, fmt.Errorf("open maxmind city db failed: %w", err)
+		if _, err := os.Stat(paths.City); err != nil {
+			log.Printf("[maxmind] skipping city db: %v", err)
+		} else {
+			reader, err := geoip2.Open(paths.City)
+			if err != nil {
+				_ = db.Close()
+				return nil, fmt.Errorf("open maxmind city db failed: %w", err)
+			}
+			db.city = reader
+			opened++
 		}
-		db.city = reader
-		opened++
 	}
 	if paths.ASN != "" {
-		reader, err := geoip2.Open(paths.ASN)
-		if err != nil {
-			_ = db.Close()
-			return nil, fmt.Errorf("open maxmind asn db failed: %w", err)
+		if _, err := os.Stat(paths.ASN); err != nil {
+			log.Printf("[maxmind] skipping asn db: %v", err)
+		} else {
+			reader, err := geoip2.Open(paths.ASN)
+			if err != nil {
+				_ = db.Close()
+				return nil, fmt.Errorf("open maxmind asn db failed: %w", err)
+			}
+			db.asn = reader
+			opened++
 		}
-		db.asn = reader
-		opened++
 	}
 
 	log.Printf("[maxmind] opened %d database(s)", opened)

@@ -156,7 +156,7 @@
     </div>
 
     <div class="filters">
-        <input type="text" id="filter-keyword" placeholder="搜索关键词（IP / 国家 / 规则 / 接口 / 动作 / 域名 / 页面路径 / 来源 / UA / 语言）">
+        <input type="text" id="filter-keyword" placeholder="搜索关键词（IP / IP2L国家 / MaxMind国家 / 城市 / ASN / 规则 / 接口 / 动作 / 域名 / 页面路径 / 来源 / UA / 语言）">
         <select id="filter-path">
             <option value="">全部接口</option>
             <option value="/api/v1/check">/api/v1/check</option>
@@ -184,7 +184,10 @@
                 <th>域名</th>
                 <th>页面路径</th>
                 <th>JSON_IP</th>
-                <th>国家</th>
+                <th>IP2L Country</th>
+                <th>MaxMind Country</th>
+                <th>MaxMind City</th>
+                <th>MaxMind ASN</th>
                 <th>风险分</th>
                 <th>动作</th>
                 <th>命中规则</th>
@@ -196,7 +199,7 @@
             </tr>
         </thead>
         <tbody id="logs-body">
-            <tr><td colspan="15" class="empty">加载中...</td></tr>
+            <tr><td colspan="18" class="empty">加载中...</td></tr>
         </tbody>
     </table>
 
@@ -287,7 +290,7 @@
             document.querySelectorAll('.ua-col').forEach(el => el.style.display = showUa ? '' : 'none');
 
             if (!logs || logs.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="15" class="empty">暂无记录</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="18" class="empty">暂无记录</td></tr>`;
                 return;
             }
             tbody.innerHTML = logs.map(log => {
@@ -309,7 +312,10 @@
                     <td>${log.domain || '-'}</td>
                     <td><div class="json" title="${(log.page_path || '').replace(/"/g, '&quot;')}">${log.page_path || '-'}</div></td>
                     <td><code>${jsonIP || '-'}</code></td>
-                    <td>${log.country || '-'}</td>
+                    <td>${log.country_ip2location || '-'}</td>
+                    <td>${log.country_maxmind || '-'}</td>
+                    <td>${log.max_city || '-'}</td>
+                    <td>${log.max_asn || '-'}</td>
                     <td>${log.risk_score}</td>
                     <td><span class="tag ${cls}">${action || '-'}</span></td>
                     <td>${log.rule_hit || '-'}</td>
@@ -340,7 +346,7 @@
                 renderStats(data.data.stats);
                 renderPagination();
             } catch (err) {
-                document.getElementById('logs-body').innerHTML = `<tr><td colspan="15" class="empty">加载失败：${err.message}</td></tr>`;
+                document.getElementById('logs-body').innerHTML = `<tr><td colspan="18" class="empty">加载失败：${err.message}</td></tr>`;
             }
         }
 
