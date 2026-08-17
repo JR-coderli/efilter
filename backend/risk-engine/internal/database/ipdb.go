@@ -36,12 +36,17 @@ type IPInfo struct {
 	IsMobile      bool    `json:"is_mobile"`
 	Threat        string  `json:"threat"`
 	FraudScore    string  `json:"fraud_score"`
+	CountryMaxMind string `json:"country_maxmind"`
+	CityMaxMind    string `json:"city_maxmind"`
+	ASNMaxMind     string `json:"asn_maxmind"`
+	ISPMaxMind     string `json:"isp_maxmind"`
 }
 
 type IPDB struct {
-	loc *ip2location.DB
-	prx *ip2proxy.DB
-	csv *IP2ProxyCSV
+	loc     *ip2location.DB
+	prx     *ip2proxy.DB
+	csv     *IP2ProxyCSV
+	maxmind *MaxMindDB
 }
 
 func NewIPDB(cfg config.IPDBConfig) (*IPDB, error) {
@@ -67,6 +72,17 @@ func NewIPDB(cfg config.IPDBConfig) (*IPDB, error) {
 		}
 		db.csv = csv
 	}
+	if cfg.MaxMind.Country != "" || cfg.MaxMind.City != "" || cfg.MaxMind.ASN != "" {
+		mm, err := NewMaxMindDB(MaxMindPaths{
+			Country: cfg.MaxMind.Country,
+			City:    cfg.MaxMind.City,
+			ASN:     cfg.MaxMind.ASN,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("open maxmind db failed: %w", err)
+		}
+		db.maxmind = mm
+	}
 	return db, nil
 }
 
@@ -79,6 +95,9 @@ func (d *IPDB) Close() {
 	}
 	if d.csv != nil {
 		d.csv.Close()
+	}
+	if d.maxmind != nil {
+		_ = d.maxmind.Close()
 	}
 }
 
@@ -179,6 +198,30 @@ func (d *IPDB) Query(ip string) (*IPInfo, error) {
 				info.IsTor = true
 			case "DCH", "DATACENTER", "HOSTING":
 				info.IsDatacenter = true
+			}
+		}
+	}
+
+	// MaxMind fallback/enrichment: query GeoLite2 Country/City/ASN for
+	// cross-verification and additional metadata.
+	if d.maxmind != nil && d.maxmind.Enabled() {
+		mm, err := d.maxmind.Query(ip)
+		if err == nil && mm != nil {
+			info.CountryMaxMind = mm.Country
+			info.CityMaxMind = mm.City
+			info.ASNMaxMind = mm.ASN
+			info.ISPMaxMind = mm.ISP
+			if info.Country == "" && mm.Country != "" {
+				info.Country = clean(mm.Country)
+			}
+			if info.City == "" && mm.City != "" {
+				info.City = clean(mm.City)
+			}
+			if info.ASN == "" && mm.ASN != "" {
+				info.ASN = clean(mm.ASN)
+			}
+			if info.ISP == "" && mm.ISP != "" {
+				info.ISP = clean(mm.ISP)
 			}
 		}
 	}
