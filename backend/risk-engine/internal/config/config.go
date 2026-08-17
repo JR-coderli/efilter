@@ -29,10 +29,17 @@ type RedisConfig struct {
 	PoolSize int    `mapstructure:"pool_size"`
 }
 
+type MaxMindConfig struct {
+	Country string `mapstructure:"country"`
+	City    string `mapstructure:"city"`
+	ASN     string `mapstructure:"asn"`
+}
+
 type IPDBConfig struct {
-	IP2Location     string `mapstructure:"ip2location"`
-	IP2Proxy        string `mapstructure:"ip2proxy"`
-	IP2ProxyIPv6CSV string `mapstructure:"ip2proxy_ipv6_csv"`
+	IP2Location     string        `mapstructure:"ip2location"`
+	IP2Proxy        string        `mapstructure:"ip2proxy"`
+	IP2ProxyIPv6CSV string        `mapstructure:"ip2proxy_ipv6_csv"`
+	MaxMind         MaxMindConfig `mapstructure:"maxmind"`
 }
 
 type RateLimitConfig struct {

@@ -29,6 +29,10 @@ ipdb:
   ip2proxy: "../../binfiles/IP2PROXY-LITE-PX2.BIN/IP2PROXY-LITE-PX2.BIN"
   # IP2Proxy LITE 的 IPv6 数据只有 CSV 格式，启动时加载到内存
   ip2proxy_ipv6_csv: "../../binfiles/IP2PROXY-LITE-PX2.IPV6.CSV/IP2PROXY-LITE-PX2.IPV6.CSV"
+  maxmind:
+    country: "../../binfiles/maxmind/GeoLite2-Country.mmdb"
+    city: "../../binfiles/maxmind/GeoLite2-City.mmdb"
+    asn: "../../binfiles/maxmind/GeoLite2-ASN.mmdb"
 
 rate_limit:
   # 窗口大小（秒），设为 1 秒以实现 QPS 限流
