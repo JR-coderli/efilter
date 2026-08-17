@@ -19,6 +19,9 @@ tmp/
 .env
 .env.local
 .env.*.local
+GeoIP.local.conf
+GeoIP.conf
+configs/GeoIP.conf
 
 # Go
 vendor/

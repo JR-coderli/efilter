@@ -1,0 +1,7 @@
+# MaxMind geoipupdate configuration template
+# Copy this file to GeoIP.conf (or configs/GeoIP.conf) and replace the placeholders.
+# DO NOT commit the real GeoIP.conf or GeoIP.local.conf to Git.
+
+AccountID YOUR_ACCOUNT_ID
+LicenseKey YOUR_LICENSE_KEY
+EditionIDs GeoLite2-ASN GeoLite2-City GeoLite2-Country

@@ -54,6 +54,10 @@ func (h *Handler) Check(c *gin.Context) {
 	}
 
 	c.Set("log_country", result.Country)
+	c.Set("log_country_ip2location", result.CountryIP2Location)
+	c.Set("log_country_maxmind", result.CountryMaxMind)
+	c.Set("log_max_city", result.CityMaxMind)
+	c.Set("log_max_asn", result.ASNMaxMind)
 	c.Set("log_risk_score", result.RiskScore)
 	c.Set("log_action", result.Action)
 	c.Set("log_rule_hit", result.RuleHit)
@@ -92,6 +96,8 @@ func (h *Handler) Results(c *gin.Context) {
 	}
 
 	c.Set("log_country", result.Country)
+	c.Set("log_country_ip2location", result.CountryIP2Location)
+	c.Set("log_country_maxmind", result.CountryMaxMind)
 	c.Set("log_risk_score", result.RiskScore)
 	c.Set("log_action", result.Action)
 	c.Set("log_rule_hit", result.RuleHit)
@@ -166,8 +172,8 @@ func (h *Handler) Logs(c *gin.Context) {
 	if q.Keyword != "" {
 		pattern := "%" + q.Keyword + "%"
 		listQuery = listQuery.Where(
-			"client_ip ILIKE ? OR country ILIKE ? OR rule_hit ILIKE ? OR path ILIKE ? OR action ILIKE ? OR domain ILIKE ? OR page_path ILIKE ? OR referer ILIKE ? OR user_agent ILIKE ? OR accept_language ILIKE ? OR request_body ILIKE ? OR response_body ILIKE ?",
-			pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern,
+			"client_ip ILIKE ? OR country ILIKE ? OR country_ip2location ILIKE ? OR country_maxmind ILIKE ? OR max_city ILIKE ? OR max_asn ILIKE ? OR rule_hit ILIKE ? OR path ILIKE ? OR action ILIKE ? OR domain ILIKE ? OR page_path ILIKE ? OR referer ILIKE ? OR user_agent ILIKE ? OR accept_language ILIKE ? OR request_body ILIKE ? OR response_body ILIKE ?",
+			pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern,
 		)
 	}
 

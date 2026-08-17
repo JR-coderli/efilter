@@ -26,20 +26,24 @@ type CheckRequest struct {
 
 // CheckResult matches the API contract in the development doc.
 type CheckResult struct {
-	IP            string `json:"ip"`
-	Country       string `json:"country"`
-	City          string `json:"city"`
-	ISP           string `json:"isp"`
-	ASN           string `json:"asn"`
-	IsProxy       bool   `json:"is_proxy"`
-	ProxyType     string `json:"proxy_type,omitempty"`
-	ProxySource   string `json:"proxy_source,omitempty"`
-	IsVPN         bool   `json:"is_vpn"`
-	IsDatacenter  bool   `json:"is_datacenter"`
-	RiskScore     int    `json:"risk_score"`
-	Action        string `json:"action"`
-	RuleHit       string `json:"rule_hit,omitempty"`
-	RequestID     string `json:"request_id,omitempty"`
+	IP                 string `json:"ip"`
+	Country            string `json:"country"`
+	CountryIP2Location string `json:"country_ip2location"`
+	CountryMaxMind     string `json:"country_maxmind"`
+	CityMaxMind        string `json:"city_maxmind"`
+	ASNMaxMind         string `json:"asn_maxmind"`
+	City               string `json:"city"`
+	ISP                string `json:"isp"`
+	ASN                string `json:"asn"`
+	IsProxy            bool   `json:"is_proxy"`
+	ProxyType          string `json:"proxy_type,omitempty"`
+	ProxySource        string `json:"proxy_source,omitempty"`
+	IsVPN              bool   `json:"is_vpn"`
+	IsDatacenter       bool   `json:"is_datacenter"`
+	RiskScore          int    `json:"risk_score"`
+	Action             string `json:"action"`
+	RuleHit            string `json:"rule_hit,omitempty"`
+	RequestID          string `json:"request_id,omitempty"`
 }
 
 type cachedRisk struct {
@@ -66,11 +70,13 @@ func (s *RiskService) DB() *gorm.DB {
 
 // FilterResult is the boolean result used by the PHP landing page.
 type FilterResult struct {
-	Result    bool   `json:"result"`
-	Country   string `json:"-"`
-	RiskScore int    `json:"-"`
-	Action    string `json:"-"`
-	RuleHit   string `json:"-"`
+	Result             bool   `json:"result"`
+	Country            string `json:"-"`
+	CountryIP2Location string `json:"-"`
+	CountryMaxMind     string `json:"-"`
+	RiskScore          int    `json:"-"`
+	Action             string `json:"-"`
+	RuleHit            string `json:"-"`
 }
 
 // Filter evaluates an IP for the PHP front-end.
@@ -88,9 +94,16 @@ func (s *RiskService) Filter(ctx context.Context, ip, targetCountries string) (*
 		return nil, fmt.Errorf("ip query failed: %w", err)
 	}
 
-	country := info.Country
+	countryIP2L := info.Country
+	if countryIP2L == "" {
+		countryIP2L = info.CountryLong
+	}
+	countryMaxMind := info.CountryMaxMind
+
+	// Primary decision country used for reporting; prefer IP2Location.
+	country := countryIP2L
 	if country == "" {
-		country = info.CountryLong
+		country = countryMaxMind
 	}
 
 	// Build a readable proxy hit summary, e.g. "proxy:yes(PUB)" or "proxy:no".
@@ -122,44 +135,84 @@ func (s *RiskService) Filter(ctx context.Context, ip, targetCountries string) (*
 	if info.IsProxy || info.IsVPN || info.IsTor || info.IsDatacenter {
 		score, action, _ := s.calculateScore(ctx, info)
 		return &FilterResult{
-			Result:    false,
-			Country:   country,
-			RiskScore: score,
-			Action:    action,
-			RuleHit:   proxyHit,
+			Result:             false,
+			Country:            country,
+			CountryIP2Location: countryIP2L,
+			CountryMaxMind:     countryMaxMind,
+			RiskScore:          score,
+			Action:             action,
+			RuleHit:            proxyHit,
 		}, nil
 	}
 
-	// If we cannot determine the country, default allow.
-	if country == "" {
-		return &FilterResult{Result: true, Action: "allow", RuleHit: "unknown_country & " + proxyHit}, nil
+	// If we cannot determine the country from either source, default allow.
+	if countryIP2L == "" && countryMaxMind == "" {
+		return &FilterResult{
+			Result:             true,
+			Action:             "allow",
+			CountryIP2Location: countryIP2L,
+			CountryMaxMind:     countryMaxMind,
+			RuleHit:            "unknown_country & " + proxyHit,
+		}, nil
 	}
 
 	// Empty targetCountries or ALL means any country is allowed.
 	trimmedTargets := strings.TrimSpace(targetCountries)
 	if trimmedTargets == "" || strings.EqualFold(trimmedTargets, "ALL") {
-		return &FilterResult{Result: true, Country: country, Action: "allow", RuleHit: "all_countries_allowed & " + proxyHit}, nil
+		return &FilterResult{
+			Result:             true,
+			Country:            country,
+			CountryIP2Location: countryIP2L,
+			CountryMaxMind:     countryMaxMind,
+			Action:             "allow",
+			RuleHit:            "all_countries_allowed & " + proxyHit,
+		}, nil
 	}
 
-	// Check target countries.
+	// Check target countries against either source.
 	targets := splitAndTrim(targetCountries, ",")
-	for _, t := range targets {
-		if strings.EqualFold(t, country) {
-			return &FilterResult{
-				Result:  true,
-				Country: country,
-				Action:  "allow",
-				RuleHit: "country_match:" + strings.ToUpper(country) + " & " + proxyHit,
-			}, nil
+	matchedIP2L := countryMatchesAny(targets, countryIP2L)
+	matchedMaxMind := countryMatchesAny(targets, countryMaxMind)
+	if matchedIP2L || matchedMaxMind {
+		source := "ip2location"
+		if matchedMaxMind && !matchedIP2L {
+			source = "maxmind"
+		} else if matchedMaxMind && matchedIP2L {
+			source = "ip2location+maxmind"
 		}
+		return &FilterResult{
+			Result:             true,
+			Country:            country,
+			CountryIP2Location: countryIP2L,
+			CountryMaxMind:     countryMaxMind,
+			Action:             "allow",
+			RuleHit:            "country_match:" + strings.ToUpper(country) + "[" + source + "] & " + proxyHit,
+		}, nil
 	}
 
 	return &FilterResult{
-		Result:  false,
-		Country: country,
-		Action:  "block",
-		RuleHit: "country_mismatch:" + strings.ToUpper(country) + "!=" + strings.ToUpper(trimmedTargets) + " & " + proxyHit,
+		Result:             false,
+		Country:            country,
+		CountryIP2Location: countryIP2L,
+		CountryMaxMind:     countryMaxMind,
+		Action:             "block",
+		RuleHit:            "country_mismatch:ip2location=" + strings.ToUpper(countryIP2L) + ",maxmind=" + strings.ToUpper(countryMaxMind) + "!=" + strings.ToUpper(trimmedTargets) + " & " + proxyHit,
 	}, nil
+}
+
+func countryMatchesAny(targets []string, countries ...string) bool {
+	for _, c := range countries {
+		c = strings.TrimSpace(strings.ToUpper(c))
+		if c == "" {
+			continue
+		}
+		for _, t := range targets {
+			if strings.EqualFold(t, c) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func splitAndTrim(s, sep string) []string {
@@ -203,21 +256,29 @@ func (s *RiskService) buildResult(req CheckRequest, info *database.IPInfo, score
 	if country == "" {
 		country = info.CountryLong
 	}
+	countryIP2L := info.Country
+	if countryIP2L == "" {
+		countryIP2L = info.CountryLong
+	}
 	return &CheckResult{
-		IP:           info.IP,
-		Country:      country,
-		City:         info.City,
-		ISP:          info.ISP,
-		ASN:          info.ASN,
-		IsProxy:      info.IsProxy,
-		ProxyType:    info.ProxyType,
-		ProxySource:  info.ProxySource,
-		IsVPN:        info.IsVPN,
-		IsDatacenter: info.IsDatacenter,
-		RiskScore:    score,
-		Action:       action,
-		RuleHit:      ruleHit,
-		RequestID:    req.RequestID,
+		IP:                 info.IP,
+		Country:            country,
+		CountryIP2Location: countryIP2L,
+		CountryMaxMind:     info.CountryMaxMind,
+		CityMaxMind:        info.CityMaxMind,
+		ASNMaxMind:         info.ASNMaxMind,
+		City:               info.City,
+		ISP:                info.ISP,
+		ASN:                info.ASN,
+		IsProxy:            info.IsProxy,
+		ProxyType:          info.ProxyType,
+		ProxySource:        info.ProxySource,
+		IsVPN:              info.IsVPN,
+		IsDatacenter:       info.IsDatacenter,
+		RiskScore:          score,
+		Action:             action,
+		RuleHit:            ruleHit,
+		RequestID:          req.RequestID,
 	}
 }
 
