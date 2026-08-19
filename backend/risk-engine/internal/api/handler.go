@@ -161,19 +161,14 @@ func (h *Handler) Logs(c *gin.Context) {
 		return
 	}
 
-	var total int64
-	if err := baseQuery().Count(&total).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, response{Code: 500, Message: err.Error()})
-		return
-	}
-
 	// Keyword search is applied only to the log list, not the top-level stats.
+	// Avoid matching large text columns (request_body/response_body) to keep queries fast.
 	listQuery := baseQuery().Order("created_at DESC")
 	if q.Keyword != "" {
 		pattern := "%" + q.Keyword + "%"
 		listQuery = listQuery.Where(
-			"client_ip ILIKE ? OR country ILIKE ? OR country_ip2location ILIKE ? OR country_maxmind ILIKE ? OR max_city ILIKE ? OR max_asn ILIKE ? OR rule_hit ILIKE ? OR path ILIKE ? OR action ILIKE ? OR domain ILIKE ? OR page_path ILIKE ? OR referer ILIKE ? OR user_agent ILIKE ? OR accept_language ILIKE ? OR request_body ILIKE ? OR response_body ILIKE ?",
-			pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern,
+			"client_ip ILIKE ? OR country ILIKE ? OR country_ip2location ILIKE ? OR country_maxmind ILIKE ? OR max_city ILIKE ? OR max_asn ILIKE ? OR rule_hit ILIKE ? OR path ILIKE ? OR action ILIKE ? OR domain ILIKE ? OR page_path ILIKE ? OR referer ILIKE ? OR user_agent ILIKE ? OR accept_language ILIKE ?",
+			pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern,
 		)
 	}
 
@@ -187,7 +182,7 @@ func (h *Handler) Logs(c *gin.Context) {
 		Code:    0,
 		Message: "ok",
 		Data: gin.H{
-			"total": total,
+			"total": stats.Total,
 			"stats": stats,
 			"logs":  logs,
 		},

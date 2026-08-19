@@ -130,9 +130,40 @@
         .quick-tag.allow { background: #d4edda; color: #155724; border-color: #c3e6cb; }
         .quick-tag.review { background: #fff3cd; color: #856404; border-color: #ffeeba; }
         .quick-tag.block { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ddd;
+            border-top-color: #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+            margin-left: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .loading-overlay.active { display: flex; }
+        .loading-overlay .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #ddd;
+            border-top-color: #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
     </style>
 </head>
 <body>
+    <div class="loading-overlay" id="loading-overlay"><div class="spinner"></div></div>
     <h1>🛡️ efilter 风控记录面板</h1>
     <p>数据保留 <strong>24 小时</strong>，自动清理过期记录。</p>
 
@@ -157,12 +188,12 @@
 
     <div class="filters">
         <input type="text" id="filter-keyword" placeholder="搜索关键词（IP / IP2L国家 / MaxMind国家 / 城市 / ASN / 规则 / 接口 / 动作 / 域名 / 页面路径 / 来源 / UA / 语言）">
-        <select id="filter-path">
+        <select id="filter-path" onchange="loadLogs(0)">
             <option value="">全部接口</option>
             <option value="/api/v1/check">/api/v1/check</option>
             <option value="/api/v1/results">/api/v1/results</option>
         </select>
-        <button onclick="loadLogs(0)">查询</button>
+        <button onclick="loadLogs(0)" id="btn-search">查询<span class="loading" id="btn-loading" style="display:none;"></span></button>
         <button onclick="resetFilters()">重置</button>
         <div class="quick-tags">
             <span class="quick-tag allow" onclick="setKeyword('allow')">allow</span>
@@ -211,6 +242,14 @@
         let pageSize = 100;
         let total = 0;
         let countdown = 30;
+        let searchDebounceTimer = null;
+        let isLoading = false;
+
+        function setLoading(loading) {
+            isLoading = loading;
+            document.getElementById('loading-overlay').classList.toggle('active', loading);
+            document.getElementById('btn-loading').style.display = loading ? 'inline-block' : 'none';
+        }
 
         function tagClass(action, result) {
             if (result === false) return 'tag-deny';
@@ -240,10 +279,6 @@
             if (path === '/api/v1/logs') return 'path-logs';
             if (path === '/health') return 'path-health';
             return 'path-default';
-        }
-
-        function shortPath(path) {
-            return path.replace('/api/v1/', '');
         }
 
         function extractIPFromBody(body) {
@@ -330,6 +365,9 @@
 
         async function loadLogs(page = 0) {
             currentPage = page;
+            if (isLoading) return;
+            setLoading(true);
+
             const keyword = document.getElementById('filter-keyword').value.trim();
             const path = document.getElementById('filter-path').value;
             let url = `/api/v1/logs?limit=${pageSize}&offset=${page * pageSize}`;
@@ -347,8 +385,18 @@
                 renderPagination();
             } catch (err) {
                 document.getElementById('logs-body').innerHTML = `<tr><td colspan="18" class="empty">加载失败：${err.message}</td></tr>`;
+            } finally {
+                setLoading(false);
+                countdown = 30;
             }
         }
+
+        function debouncedLoadLogs(page = 0) {
+            if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => loadLogs(page), 300);
+        }
+
+        document.getElementById('filter-keyword').addEventListener('input', () => debouncedLoadLogs(0));
 
         function resetFilters() {
             document.getElementById('filter-keyword').value = '';
@@ -362,6 +410,7 @@
         }
 
         setInterval(() => {
+            if (isLoading) return;
             countdown--;
             if (countdown <= 0) {
                 countdown = 30;
