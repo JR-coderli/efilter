@@ -1,6 +1,6 @@
 app:
   name: "risk-engine"
-  mode: "debug" # debug / release
+  mode: "release" # debug / release
   port: 8080
   # 默认 API Key，用于 /api/v1/check 和 /api/v1/results 的内存认证
   api_key: "risk-engine-dev-key-2026"
@@ -18,7 +18,7 @@ database:
   max_idle_conns: 20
 
 redis:
-  addr: "127.0.0.1:6380"
+  addr: "127.0.0.1:6379"
   password: ""
   db: 5
   pool_size: 20
