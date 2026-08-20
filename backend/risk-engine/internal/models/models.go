@@ -51,16 +51,16 @@ type AccessLog struct {
 	ClientIP       string    `gorm:"size:64;index" json:"client_ip"`
 	Method         string    `gorm:"size:16" json:"method"`
 	Path           string    `gorm:"size:255" json:"path"`
-	Domain         string    `gorm:"size:255" json:"domain"`
-	PagePath       string    `gorm:"size:512" json:"page_path"`
+	Domain         string    `gorm:"size:255;index" json:"domain"`
+	PagePath       string    `gorm:"size:512;index" json:"page_path"`
 	Referer        string    `gorm:"type:text" json:"referer"`
 	UserAgent      string    `gorm:"type:text" json:"user_agent"`
 	AcceptLanguage string    `gorm:"type:text" json:"accept_language"`
 	Country          string    `gorm:"size:8;index" json:"country"`
 	CountryIP2Location string   `gorm:"size:8;index" json:"country_ip2location"`
 	CountryMaxMind   string    `gorm:"size:8;index" json:"country_maxmind"`
-	MaxCity          string    `gorm:"size:64" json:"max_city"`
-	MaxASN           string    `gorm:"size:32" json:"max_asn"`
+	MaxCity          string    `gorm:"size:64;index" json:"max_city"`
+	MaxASN           string    `gorm:"size:32;index" json:"max_asn"`
 	RiskScore      int       `json:"risk_score"`
 	Action         string    `gorm:"size:16" json:"action"`
 	RuleHit        string    `gorm:"size:255" json:"rule_hit"`
