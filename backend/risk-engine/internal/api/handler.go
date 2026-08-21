@@ -133,6 +133,11 @@ type logStats struct {
 
 // Logs returns recent access logs for the dashboard.
 func (h *Handler) Logs(c *gin.Context) {
+	if h.riskService.DB() == nil {
+		c.JSON(http.StatusServiceUnavailable, response{Code: 503, Message: "database unavailable"})
+		return
+	}
+
 	var q LogsQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
 		q.Limit = 100

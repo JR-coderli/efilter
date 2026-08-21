@@ -33,12 +33,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := database.NewGORM(cfg.Database)
+	// Database is optional: if it fails, the service still starts so that
+	// /api/v1/results and /api/v1/check can return IP risk results. Access
+	// logs and dashboard will be unavailable until PostgreSQL is healthy.
+	var db *gorm.DB
+	db, err = database.NewGORM(cfg.Database)
 	if err != nil {
-		logger.Fatal("connect database failed", zap.Error(err))
-	}
-	if err := database.AutoMigrate(db); err != nil {
-		logger.Fatal("auto migrate failed", zap.Error(err))
+		logger.Warn("connect database failed, continuing without access logs", zap.Error(err))
+	} else {
+		if err := database.AutoMigrate(db); err != nil {
+			logger.Warn("auto migrate failed, continuing without access logs", zap.Error(err))
+			db = nil
+		}
 	}
 
 	rdb, err := database.NewRedis(cfg.Redis)
@@ -52,14 +58,17 @@ func main() {
 	}
 	defer ipdb.Close()
 
-	if err := seedDefaultData(db); err != nil {
-		logger.Fatal("seed default data failed", zap.Error(err))
+	if db != nil {
+		if err := seedDefaultData(db); err != nil {
+			logger.Warn("seed default data failed", zap.Error(err))
+		}
+
+		// Start background cleanup for access logs (retain 24 hours).
+		go startAccessLogCleanup(db)
 	}
 
-	// Start background cleanup for access logs (retain 24 hours).
-	go startAccessLogCleanup(db)
-
-	// Start batched access log writer (flush every minute).
+	// Start batched access log writer (flush every minute). A nil db is safe
+	// and simply drops records, keeping the core APIs available.
 	accessLogBatcher := middleware.NewAccessLogBatcher(db, logger.L(), time.Minute)
 	defer accessLogBatcher.Stop()
 

@@ -224,7 +224,7 @@ func AccessLog(batcher *AccessLogBatcher, log *zap.Logger) gin.HandlerFunc {
 		logger.Info("access", fields...)
 
 		// Persist to PostgreSQL asynchronously via batcher (only API requests).
-		if !strings.HasPrefix(c.Request.URL.Path, "/api/") {
+		if !strings.HasPrefix(c.Request.URL.Path, "/api/") || batcher == nil {
 			return
 		}
 

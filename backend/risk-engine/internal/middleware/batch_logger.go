@@ -36,20 +36,32 @@ func NewAccessLogBatcher(db *gorm.DB, log *zap.Logger, interval time.Duration) *
 	return b
 }
 
-// Add appends a log record to the buffer.
+// Add appends a log record to the buffer. If the batcher has no DB, the
+// record is silently dropped so that core APIs remain available.
 func (b *AccessLogBatcher) Add(record models.AccessLog) {
+	if b.db == nil {
+		return
+	}
 	b.mu.Lock()
 	b.buffer = append(b.buffer, record)
 	b.mu.Unlock()
 }
 
-// Stop flushes remaining logs and stops the background loop.
+// Stop flushes remaining logs and stops the background loop. Safe to call
+// even when the batcher has no DB.
 func (b *AccessLogBatcher) Stop() {
 	close(b.stop)
 	<-b.done
 }
 
 func (b *AccessLogBatcher) loop() {
+	if b.db == nil {
+		// Nothing to flush; wait for Stop signal to avoid busy loop.
+		<-b.stop
+		close(b.done)
+		return
+	}
+
 	ticker := time.NewTicker(b.interval)
 	defer ticker.Stop()
 	defer close(b.done)
@@ -66,6 +78,10 @@ func (b *AccessLogBatcher) loop() {
 }
 
 func (b *AccessLogBatcher) flush() {
+	if b.db == nil {
+		return
+	}
+
 	b.mu.Lock()
 	if len(b.buffer) == 0 {
 		b.mu.Unlock()
