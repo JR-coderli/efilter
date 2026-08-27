@@ -19,6 +19,7 @@ tmp/
 .env
 .env.local
 .env.*.local
+docker/.env
 GeoIP.local.conf
 GeoIP.conf
 configs/GeoIP.conf
