@@ -1,0 +1,77 @@
+name: efilter
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: efilter/risk-engine:latest
+    container_name: efilter-app
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      RISK_APP_API_KEY: ${RISK_APP_API_KEY:-risk-engine-dev-key-2026}
+      RISK_DATABASE_DSN: ${RISK_DATABASE_DSN:-host=postgres user=postgres password=admin123 dbname=risk_engine port=5432 sslmode=disable TimeZone=Asia/Shanghai}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      # IP 数据库宿主机挂载，read-only；更新流程：宿主机脚本替换文件后 restart app
+      - ../binfiles:/app/binfiles:ro
+      # 文件日志持久化（stdout 也可用 docker logs 查看）
+      - app-logs:/app/backend/risk-engine/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - efilter-net
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: efilter-postgres
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+      POSTGRES_DB: risk_engine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # 仅首次初始化数据卷时执行（建 pg_trgm 扩展）
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d risk_engine"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - efilter-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: efilter-redis
+    restart: unless-stopped
+    # 仅用于限流计数，纯内存、不持久化
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - efilter-net
+
+volumes:
+  pgdata:
+  app-logs:
+
+networks:
+  efilter-net:
+    driver: bridge
