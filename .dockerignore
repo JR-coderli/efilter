@@ -1,0 +1,44 @@
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# Secrets（镜像与构建上下文都不允许含真实密钥）
+.env
+.env.local
+.env.*.local
+docker/.env
+GeoIP.local.conf
+
+# IP 数据库（运行时挂载，不进镜像）
+binfiles/
+
+# 运行时数据与日志
+data/
+logs/
+tmp/
+backend/risk-engine/logs/
+
+# 本地工具链与压缩包（tools/go 约 1GB+）
+tools/go/
+tools/go.zip
+tools/mariadb.zip
+
+# 预编译二进制
+backend/risk-engine/risk-engine
+backend/risk-engine/risk-engine.exe
+
+# 文档（构建不需要）
+docs/
+backend/docs/
+CLAUDE.md
+README.md
+
+# 杂项
+*.zip
+*.tar.gz
+*.exe
+*.dll
+*.db
+*.sqlite*
+vendor/
