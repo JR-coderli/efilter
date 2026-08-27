@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"risk-engine/internal/middleware"
@@ -115,7 +116,7 @@ func (h *Handler) Results(c *gin.Context) {
 
 // LogsQuery is the query parameters for fetching access logs.
 type LogsQuery struct {
-	Limit       int    `form:"limit,default=100"`
+	Limit       int    `form:"limit,default=50"`
 	Offset      int    `form:"offset"`
 	IP          string `form:"ip"`
 	Keyword     string `form:"keyword"`
@@ -140,36 +141,37 @@ func (h *Handler) Logs(c *gin.Context) {
 
 	var q LogsQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		q.Limit = 100
+		q.Limit = 50
 	}
 	if q.Limit <= 0 || q.Limit > 1000 {
-		q.Limit = 100
+		q.Limit = 50
 	}
 
-	baseQuery := func() *gorm.DB {
-		query := h.riskService.DB().WithContext(c.Request.Context()).Model(&models.AccessLog{})
-		if q.IP != "" {
-			query = query.Where("client_ip = ?", q.IP)
-		}
-		if q.Path != "" {
-			query = query.Where("path = ?", q.Path)
-		}
-		if q.ExcludePath != "" {
-			query = query.Where("path != ?", q.ExcludePath)
-		}
-		return query
+	filters := logFilters{
+		IP:          q.IP,
+		Path:        q.Path,
+		ExcludePath: q.ExcludePath,
 	}
 
-	stats, err := computeLogStats(baseQuery)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, response{Code: 500, Message: err.Error()})
-		return
-	}
+	baseQuery := h.riskService.DB().WithContext(c.Request.Context()).Model(&models.AccessLog{})
+	baseQuery = applyLogFilters(baseQuery, filters)
+
+	// Run stats aggregation and list query concurrently to reduce latency.
+	statsCh := make(chan logStats, 1)
+	statsErrCh := make(chan error, 1)
+	go func() {
+		stats, err := computeLogStats(h.riskService.DB(), filters)
+		if err != nil {
+			statsErrCh <- err
+			return
+		}
+		statsCh <- stats
+	}()
 
 	// Keyword search is applied only to the log list, not the top-level stats.
 	// Avoid matching large text columns (request_body/response_body/user_agent/accept_language)
 	// to keep queries fast.
-	listQuery := baseQuery().Order("created_at DESC")
+	listQuery := baseQuery.Order("created_at DESC")
 	if q.Keyword != "" {
 		pattern := "%" + q.Keyword + "%"
 		listQuery = listQuery.Where(
@@ -179,7 +181,20 @@ func (h *Handler) Logs(c *gin.Context) {
 	}
 
 	var logs []models.AccessLog
-	if err := listQuery.Limit(q.Limit).Offset(q.Offset).Find(&logs).Error; err != nil {
+	logsErr := make(chan error, 1)
+	go func() {
+		logsErr <- listQuery.Limit(q.Limit).Offset(q.Offset).Find(&logs).Error
+	}()
+
+	var stats logStats
+	select {
+	case err := <-statsErrCh:
+		c.JSON(http.StatusInternalServerError, response{Code: 500, Message: err.Error()})
+		return
+	case stats = <-statsCh:
+	}
+
+	if err := <-logsErr; err != nil {
 		c.JSON(http.StatusInternalServerError, response{Code: 500, Message: err.Error()})
 		return
 	}
@@ -195,32 +210,77 @@ func (h *Handler) Logs(c *gin.Context) {
 	})
 }
 
-func computeLogStats(baseQuery func() *gorm.DB) (logStats, error) {
+type logFilters struct {
+	IP          string
+	Path        string
+	ExcludePath string
+}
+
+func applyLogFilters(query *gorm.DB, f logFilters) *gorm.DB {
+	if f.IP != "" {
+		query = query.Where("client_ip = ?", f.IP)
+	}
+	if f.Path != "" {
+		query = query.Where("path = ?", f.Path)
+	}
+	if f.ExcludePath != "" {
+		query = query.Where("path != ?", f.ExcludePath)
+	}
+	return query
+}
+
+func buildLogFilterSQL(f logFilters) (string, []interface{}) {
+	var clauses []string
+	var args []interface{}
+	if f.IP != "" {
+		clauses = append(clauses, "client_ip = ?")
+		args = append(args, f.IP)
+	}
+	if f.Path != "" {
+		clauses = append(clauses, "path = ?")
+		args = append(args, f.Path)
+	}
+	if f.ExcludePath != "" {
+		clauses = append(clauses, "path != ?")
+		args = append(args, f.ExcludePath)
+	}
+	if len(clauses) == 0 {
+		return "", nil
+	}
+	return "WHERE " + strings.Join(clauses, " AND "), args
+}
+
+func computeLogStats(db *gorm.DB, filters logFilters) (logStats, error) {
 	var stats logStats
-	var total int64
-	if err := baseQuery().Count(&total).Error; err != nil {
-		return stats, err
-	}
-	stats.Total = total
-
-	var allow int64
-	if err := baseQuery().Where("action IN ?", []string{"allow", "safe"}).Count(&allow).Error; err != nil {
-		return stats, err
-	}
-	stats.Allow = allow
-
-	var deny int64
-	if err := baseQuery().Where("action IN ?", []string{"block", "review"}).Count(&deny).Error; err != nil {
-		return stats, err
-	}
-	stats.Deny = deny
-
 	hourAgo := time.Now().Add(-1 * time.Hour)
-	var hourCount int64
-	if err := baseQuery().Where("created_at > ?", hourAgo).Count(&hourCount).Error; err != nil {
+
+	var result struct {
+		Total     int64
+		Allow     int64
+		Deny      int64
+		HourCount int64
+	}
+
+	whereClause, whereArgs := buildLogFilterSQL(filters)
+
+	sql := "SELECT " +
+		"COUNT(*) AS total, " +
+		"COUNT(*) FILTER (WHERE action IN ('allow', 'safe')) AS allow, " +
+		"COUNT(*) FILTER (WHERE action IN ('block', 'review')) AS deny, " +
+		"COUNT(*) FILTER (WHERE created_at > ?) AS hour_count " +
+		"FROM access_logs " + whereClause
+
+	args := []interface{}{hourAgo}
+	args = append(args, whereArgs...)
+
+	err := db.Raw(sql, args...).Scan(&result).Error
+	if err != nil {
 		return stats, err
 	}
-	stats.HourCount = hourCount
 
+	stats.Total = result.Total
+	stats.Allow = result.Allow
+	stats.Deny = result.Deny
+	stats.HourCount = result.HourCount
 	return stats, nil
 }
