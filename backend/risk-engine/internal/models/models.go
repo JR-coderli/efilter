@@ -46,27 +46,29 @@ type IPWhitelist struct {
 }
 
 type AccessLog struct {
-	ID             uint      `gorm:"primaryKey" json:"id"`
-	RequestID      string    `gorm:"size:64;index" json:"request_id"`
-	ClientIP       string    `gorm:"size:64;index" json:"client_ip"`
-	Method         string    `gorm:"size:16" json:"method"`
-	Path           string    `gorm:"size:255" json:"path"`
-	Domain         string    `gorm:"size:255;index" json:"domain"`
-	PagePath       string    `gorm:"size:512;index" json:"page_path"`
-	Referer        string    `gorm:"type:text" json:"referer"`
-	UserAgent      string    `gorm:"type:text" json:"user_agent"`
-	AcceptLanguage string    `gorm:"type:text" json:"accept_language"`
-	Country          string    `gorm:"size:8;index" json:"country"`
-	CountryIP2Location string   `gorm:"size:8;index" json:"country_ip2location"`
-	CountryMaxMind   string    `gorm:"size:8;index" json:"country_maxmind"`
-	MaxCity          string    `gorm:"size:64;index" json:"max_city"`
-	MaxASN           string    `gorm:"size:32;index" json:"max_asn"`
-	RiskScore      int       `json:"risk_score"`
-	Action         string    `gorm:"size:16" json:"action"`
-	RuleHit        string    `gorm:"size:255" json:"rule_hit"`
-	RequestBody    string    `gorm:"type:text" json:"request_body"`
-	ResponseBody   string    `gorm:"type:text" json:"response_body"`
-	StatusCode     int       `json:"status_code"`
-	ResponseTime   int64     `gorm:"index" json:"response_time_ms"`
-	CreatedAt      time.Time `gorm:"index" json:"created_at"`
+	ID             uint   `gorm:"primaryKey" json:"id"`
+	RequestID      string `gorm:"size:64;index" json:"request_id"`
+	ClientIP       string `gorm:"size:64;index" json:"client_ip"`
+	Method         string `gorm:"size:16" json:"method"`
+	Path           string `gorm:"size:255" json:"path"`
+	Domain         string `gorm:"size:255;index" json:"domain"`
+	PagePath       string `gorm:"size:512;index" json:"page_path"`
+	Referer        string `gorm:"type:text" json:"referer"`
+	UserAgent      string `gorm:"type:text" json:"user_agent"`
+	AcceptLanguage string `gorm:"type:text" json:"accept_language"`
+	Country        string `gorm:"size:8;index" json:"country"`
+	// 显式列名：GORM 默认把 CountryIP2Location 命名为 country_ip2_location，
+	// 与 keyword 搜索 / 建索引脚本使用的 country_ip2location 不一致（MaxMind 同理）
+	CountryIP2Location string    `gorm:"column:country_ip2location;size:8;index" json:"country_ip2location"`
+	CountryMaxMind     string    `gorm:"column:country_maxmind;size:8;index" json:"country_maxmind"`
+	MaxCity            string    `gorm:"size:64;index" json:"max_city"`
+	MaxASN             string    `gorm:"size:32;index" json:"max_asn"`
+	RiskScore          int       `json:"risk_score"`
+	Action             string    `gorm:"size:16" json:"action"`
+	RuleHit            string    `gorm:"size:255" json:"rule_hit"`
+	RequestBody        string    `gorm:"type:text" json:"request_body"`
+	ResponseBody       string    `gorm:"type:text" json:"response_body"`
+	StatusCode         int       `json:"status_code"`
+	ResponseTime       int64     `gorm:"index" json:"response_time_ms"`
+	CreatedAt          time.Time `gorm:"index" json:"created_at"`
 }
