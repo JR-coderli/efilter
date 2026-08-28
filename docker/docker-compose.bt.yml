@@ -52,7 +52,9 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DB: risk_engine
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # PG18+ 镜像要求数据卷挂在 /var/lib/postgresql（数据落在 18/docker 子目录），
+      # 旧路径 /var/lib/postgresql/data 会被镜像直接拒绝启动
+      - pgdata:/var/lib/postgresql
       - /opt/efilter/docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d risk_engine"]
