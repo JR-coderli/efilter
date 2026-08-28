@@ -1,0 +1,85 @@
+# 宝塔 Docker 编排专用版本（配合 docs/docker-bt-deployment.md 使用）
+#
+# 与 docker-compose.yml 的差异：
+#   1. 所有挂载/env 文件用绝对路径 —— 宝塔编排会把 compose 存到面板自己的目录，
+#      相对路径（../binfiles）在宝塔环境会解析到错误位置
+#   2. 无 build 段 —— 宝塔 UI 不方便构建镜像，需先在 SSH 预构建：
+#      docker build -f /opt/efilter/docker/Dockerfile -t efilter/risk-engine:latest /opt/efilter
+#   3. 不使用 ${} 变量插值 —— 宝塔编排目录下没有 .env，插值会全部落到默认值；
+#      敏感变量改用 env_file 注入容器
+#
+# 默认安装目录为 /opt/efilter，不同请全局替换路径。
+# ⚠ 容器名与 docker/docker-compose.yml 固定相同，两套 compose 只能拉起一套。
+
+name: efilter
+
+services:
+  app:
+    image: efilter/risk-engine:latest
+    container_name: efilter-app
+    restart: unless-stopped
+    env_file:
+      - /opt/efilter/docker/.env
+    environment:
+      TZ: Asia/Shanghai
+    ports:
+      - "8080:8080" # 改宿主机端口：编辑冒号左边的 8080
+    volumes:
+      - /opt/efilter/binfiles:/app/binfiles:ro
+      - app-logs:/app/backend/risk-engine/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - efilter-net
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: efilter-postgres
+    restart: unless-stopped
+    env_file:
+      - /opt/efilter/docker/.env # POSTGRES_PASSWORD 从这里注入（仅首次建库生效）
+    environment:
+      TZ: Asia/Shanghai
+      POSTGRES_USER: postgres
+      POSTGRES_DB: risk_engine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - /opt/efilter/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d risk_engine"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - efilter-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: efilter-redis
+    restart: unless-stopped
+    # 仅用于限流计数，纯内存、不持久化
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - efilter-net
+
+volumes:
+  pgdata:
+  app-logs:
+
+networks:
+  efilter-net:
+    driver: bridge
