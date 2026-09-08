@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"time"
 
 	"risk-engine/internal/config"
 	"risk-engine/internal/models"
@@ -43,6 +44,11 @@ func NewGORM(cfg config.DatabaseConfig) (*gorm.DB, error) {
 	if cfg.MaxIdleConns > 0 {
 		sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
 	}
+	// Recycle connections periodically. Without a max lifetime a PostgreSQL
+	// backend process keeps whatever memory a heavy query (e.g. dashboard
+	// full-table scan) once allocated, effectively leaking it for the life
+	// of the connection — observed as multi-GB idle backends in production.
+	sqlDB.SetConnMaxLifetime(30 * time.Minute)
 
 	return db, nil
 }
