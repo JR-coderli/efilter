@@ -63,7 +63,7 @@ func main() {
 			logger.Warn("seed default data failed", zap.Error(err))
 		}
 
-		// Start background cleanup for access logs (retain 24 hours).
+		// Start background cleanup for access logs (retain 2 hours).
 		go startAccessLogCleanup(db)
 	}
 
@@ -146,7 +146,7 @@ func startAccessLogCleanup(db *gorm.DB) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		cutoff := time.Now().Add(-24 * time.Hour)
+		cutoff := time.Now().Add(-2 * time.Hour)
 		result := db.Where("created_at < ?", cutoff).Delete(&models.AccessLog{})
 		if result.Error != nil {
 			logger.Error("access log cleanup failed", zap.Error(result.Error))

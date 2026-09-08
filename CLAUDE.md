@@ -210,7 +210,7 @@ IP2PROXY_URL=https://www.ip2location.com/download?token=...&file=PX2LITEBIN
 - `request_body`、`response_body`
 - `status_code`、`response_time_ms`、`created_at`
 
-**数据保留策略：** 24 小时。服务启动后会在后台启动一个每小时运行一次的清理任务，删除 `created_at < now() - 24h` 的记录。
+**数据保留策略：** 2 小时。服务启动后会在后台启动一个每小时运行一次的清理任务，删除 `created_at < now() - 2h` 的记录。
 
 **前端面板：**
 
@@ -289,6 +289,7 @@ sudo crontab -e
 
 - 2026-08-10：项目已推送至 GitHub（https://github.com/JR-coderli/efilter），正在 CentOS 生产环境部署中。
 - 2026-08-10：新增前端访问记录面板 `/dashboard/`，访问日志写入 PostgreSQL 并保留 24 小时；新增 `GET /api/v1/logs`。
+- 2026-08-28：访问日志保留从 24 小时缩短为 2 小时（dashboard 统计查询为全表扫描，行数过多导致 PostgreSQL backend 内存膨胀；前端面板已改为手动刷新，无自动刷新）。
 - 2026-08-10：新增 `.gitignore`、`tools/deploy/deploy.sh` CentOS 一键部署脚本；`.env.production.example` 重命名为 `.env`（本地），并新增 `.env.example` 模板。
 - 2026-08-10：新增 `tools/update-ipdb/update-ipdb.sh` 自动更新脚本，支持下载 zip、解压、原子替换 BIN；下载地址记录到 `.env` / `.env.example`。
 - 2026-08-10：IP 数据库和日志路径改为相对路径，BIN 文件统一放到项目根目录 `binfiles/`，便于生产环境路径一致。
