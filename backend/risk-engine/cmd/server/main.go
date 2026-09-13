@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -32,6 +33,13 @@ func main() {
 		fmt.Fprintf(os.Stderr, "init logger error: %v\n", err)
 		os.Exit(1)
 	}
+
+	// Soft memory limit for the Go runtime. Without it the GC lets the heap
+	// arena grow under traffic and never returns it to the OS, so RSS climbs
+	// toward 1GB and stays there (observed in production). The limit must sit
+	// above the resident baseline: ~200MB for the IPv6 CSV plus runtime
+	// overhead; 512MB leaves comfortable headroom for request traffic.
+	debug.SetMemoryLimit(512 << 20)
 
 	// Database is optional: if it fails, the service still starts so that
 	// /api/v1/results and /api/v1/check can return IP risk results. Access
