@@ -51,6 +51,10 @@ services:
       TZ: Asia/Shanghai
       POSTGRES_USER: postgres
       POSTGRES_DB: risk_engine
+    ports:
+      # 仅绑定回环地址：供 SSH 隧道 / Navicat 从服务器本机转发访问，
+      # 公网不可达；宿主 5433 避开宝塔自带 PG 的 5432
+      - "127.0.0.1:5433:5432"
     volumes:
       # PG18+ 镜像要求数据卷挂在 /var/lib/postgresql（数据落在 18/docker 子目录），
       # 旧路径 /var/lib/postgresql/data 会被镜像直接拒绝启动
