@@ -227,6 +227,7 @@ GitHub 仓库：https://github.com/JR-coderli/efilter
 
 - 宝塔面板方案（生产在用）：[docs/docker-bt-deployment.md](docs/docker-bt-deployment.md)，编排文件 `docker/docker-compose.bt.yml`
 - 纯命令行方案：[docs/docker-deployment.md](docs/docker-deployment.md)，编排文件 `docker/docker-compose.yml`
+- 先测后上（test 镜像并行验证，通过后转正）：[docs/docker部署测试版本.md](docs/docker部署测试版本.md)
 
 容器名：`efilter-app` / `efilter-postgres` / `efilter-redis`。**升级必须重新构建镜像 + 删容器重建，只 restart 不生效**：
 
