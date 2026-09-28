@@ -89,7 +89,7 @@ SQL
 docker ps --filter name=efilter        # 三个容器 Up（app 带 healthy）
 curl http://127.0.0.1:8080/health
 curl -s -X POST http://127.0.0.1:8080/api/v1/results \
-  -H "X-API-Key: 你的APIKEY" \
+  -H "X-API-Key: risk-engine-dev-key-2026" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "ip=8.8.8.8&country=US"
 ```
@@ -107,6 +107,14 @@ cd /opt/efilter && bash tools/update-ipdb/update-ipdb.sh >> logs/ipdb-update.log
 ```
 
 **任务 2：MaxMind 更新（每天 3:10）**
+1.替换token
+GeoIP.local.conf 线上替换 GeoIP.conf.example
+
+2.CentOS 安装 geoipupdate
+cd /tmp
+curl -LO https://github.com/maxmind/geoipupdate/releases/download/v8.0.0/geoipupdate_8.0.0_linux_amd64.rpm
+sudo dnf install -y ./geoipupdate_8.0.0_linux_amd64.rpm
+
 
 ```bash
 cd /opt/efilter && GEOIP_CONF=/opt/efilter/GeoIP.local.conf bash tools/update-ipdb/update-maxmind.sh >> logs/geoipupdate.log 2>&1 && docker restart efilter-app
