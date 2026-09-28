@@ -376,6 +376,12 @@ func scoreToAction(score int) string {
 }
 
 func (s *RiskService) loadActiveRules(ctx context.Context) ([]models.RiskRule, error) {
+	if s.db == nil {
+		// Database is optional (see main.go): without it, scoring falls back
+		// to the built-in rules only. This keeps /api/v1/check available when
+		// PostgreSQL is down, same as /api/v1/results.
+		return nil, nil
+	}
 	var rules []models.RiskRule
 	if err := s.db.WithContext(ctx).Where("status = ?", 1).Find(&rules).Error; err != nil {
 		return nil, err
