@@ -217,23 +217,38 @@ IP2PROXY_URL=https://www.ip2location.com/download?token=...&file=PX2LITEBIN
 - URL：`/` 或 `/dashboard/`
 - 实时展示最近访问记录、放行/拦截统计、最近 1 小时请求数
 - 支持按 IP、接口路径筛选
-- 每 30 秒自动刷新
+- 手动刷新（无自动刷新，避免反复触发全表扫描统计）
 - 数据来源：`GET /api/v1/logs?limit=100&offset=0&ip=&path=`
 
 ## 生产部署
 
 GitHub 仓库：https://github.com/JR-coderli/efilter
 
-已提供 CentOS 一键部署脚本：
+**当前生产（2026-09-28 起）：新的 CentOS 服务器 + 宝塔 Docker 编排部署**，容器化运行 risk-engine + PostgreSQL 18 + Redis 7，安装目录 `/opt/efilter`。部署与运维教程：
+
+- 宝塔面板方案（生产在用）：[docs/docker-bt-deployment.md](docs/docker-bt-deployment.md)，编排文件 `docker/docker-compose.bt.yml`
+- 纯命令行方案：[docs/docker-deployment.md](docs/docker-deployment.md)，编排文件 `docker/docker-compose.yml`
+
+容器名：`efilter-app` / `efilter-postgres` / `efilter-redis`。**升级必须重新构建镜像 + 删容器重建，只 restart 不生效**：
+
+```bash
+cd /opt/efilter && git pull
+docker build -f /opt/efilter/docker/Dockerfile -t efilter/risk-engine:latest /opt/efilter
+docker rm -f efilter-app   # 宝塔编排点启动，或 docker compose 拉起
+```
+
+日常运维（Docker 生产）：
+
+```bash
+docker ps --filter name=efilter                 # 状态
+docker logs --tail 100 -f efilter-app           # 日志
+docker exec -i efilter-postgres psql -U postgres -d risk_engine -c "..."   # 数据库
+```
+
+**另有旧版 CentOS 一键部署脚本（systemd 方式，旧服务器在用，新部署不推荐）：**
 
 ```bash
 sudo bash tools/deploy/deploy.sh
-```
-
-或直接在服务器上执行：
-
-```bash
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/JR-coderli/efilter/main/tools/deploy/deploy.sh)"
 ```
 
 脚本会自动完成：安装 Go/PostgreSQL/Redis/Nginx、拉取代码、编译服务、初始化数据库、下载 IP 数据库、配置 systemd + Nginx、启动服务。
@@ -256,10 +271,14 @@ sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/JR-coderli/efilter/
 
 **查看服务状态：**
 
+Docker（当前生产）：
+
 ```bash
-sudo systemctl status efilter
-sudo journalctl -u efilter -f
+docker ps --filter name=efilter
+docker logs --tail 100 -f efilter-app
 ```
+
+systemd（旧服务器）：
 
 **手动更新 IP 数据库：**
 
@@ -269,6 +288,16 @@ sudo systemctl restart efilter
 ```
 
 **设置定时自动更新：**
+
+Docker（当前生产，重启容器即重新加载挂载的 IP 库）：
+
+```bash
+sudo crontab -e
+# 添加：
+0 3 * * * /opt/efilter/tools/update-ipdb/update-ipdb.sh >> /opt/efilter/logs/ipdb-update.log 2>&1 && /usr/bin/docker restart efilter-app
+```
+
+systemd（旧服务器）：
 
 ```bash
 sudo crontab -e
@@ -287,6 +316,7 @@ sudo crontab -e
 
 ## 最后更新
 
+- 2026-09-28：生产迁移至新 CentOS 服务器，改用宝塔 Docker 编排部署（容器 efilter-app/postgres/redis，安装目录 /opt/efilter），详见 docs/docker-bt-deployment.md；旧 systemd 部署降级为旧服务器专用。修复：DB 不可用时 /api/v1/check 不再 500（loadActiveRules nil 保护）；数据库连接 30 分钟回收 + Go 软内存上限 512MB（修 PG backend 膨胀）；GORM 模型显式列名对齐手写 SQL。
 - 2026-08-10：项目已推送至 GitHub（https://github.com/JR-coderli/efilter），正在 CentOS 生产环境部署中。
 - 2026-08-10：新增前端访问记录面板 `/dashboard/`，访问日志写入 PostgreSQL 并保留 24 小时；新增 `GET /api/v1/logs`。
 - 2026-08-28：访问日志保留从 24 小时缩短为 2 小时（dashboard 统计查询为全表扫描，行数过多导致 PostgreSQL backend 内存膨胀；前端面板已改为手动刷新，无自动刷新）。
