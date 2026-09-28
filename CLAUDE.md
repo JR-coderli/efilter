@@ -16,7 +16,6 @@
 | 文件 | 说明 |
 |------|------|
 | `backend/docs/risk-engine-development.md.md` | 原始开发 PRD |
-| `backend/docs/php配合.md` | PHP 落地页调用示例 |
 | `backend/risk-engine/` | Go 服务代码 |
 | `backend/risk-engine/configs/config.yaml` | 服务配置 |
 | `backend/risk-engine/logs/app.log` | 运行日志 |

@@ -106,6 +106,5 @@ risk-engine-dev-key-2026
 - [CLAUDE.md](CLAUDE.md) — 项目记忆、关键决策、运行环境、部署后管理
 - [backend/risk-engine/README.md](backend/risk-engine/README.md) — 后端服务详细说明
 - [backend/docs/risk-engine-development.md.md](backend/docs/risk-engine-development.md.md) — 原始开发 PRD
-- [backend/docs/php配合.md](backend/docs/php配合.md) — PHP 落地页调用示例
 - [tools/deploy/README.md](tools/deploy/README.md) — 部署脚本详细说明
 - [tools/update-ipdb/README.md](tools/update-ipdb/README.md) — IP 数据库自动更新说明
