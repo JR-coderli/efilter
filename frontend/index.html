@@ -187,7 +187,13 @@
     </div>
 
     <div class="filters">
-        <input type="text" id="filter-keyword" placeholder="搜索关键词（IP / IP2L国家 / MaxMind国家 / 城市 / ASN / 规则 / 接口 / 动作 / 域名 / 页面路径 / 来源）">
+        <select id="filter-field" onchange="loadLogs(0)">
+            <option value="page_path">页面路径</option>
+            <option value="country">IP2L Country</option>
+            <option value="action">动作</option>
+            <option value="json_ip">JSON_IP</option>
+        </select>
+        <input type="text" id="filter-keyword" placeholder="输入关键词，按所选范围搜索">
         <select id="filter-path" onchange="loadLogs(0)">
             <option value="">全部接口</option>
             <option value="/api/v1/check">/api/v1/check</option>
@@ -367,9 +373,13 @@
             setLoading(true);
 
             const keyword = document.getElementById('filter-keyword').value.trim();
+            const field = document.getElementById('filter-field').value;
             const path = document.getElementById('filter-path').value;
             let url = `/api/v1/logs?limit=${pageSize}&offset=${page * pageSize}`;
-            if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+            if (keyword) {
+                url += `&keyword=${encodeURIComponent(keyword)}`;
+                url += `&field=${encodeURIComponent(field)}`;
+            }
             if (path) url += `&path=${encodeURIComponent(path)}`;
             url += `&exclude_path=${encodeURIComponent('/api/v1/logs')}`;
 
@@ -398,11 +408,13 @@
 
         function resetFilters() {
             document.getElementById('filter-keyword').value = '';
+            document.getElementById('filter-field').value = 'page_path';
             document.getElementById('filter-path').value = '';
             loadLogs(0);
         }
 
         function setKeyword(kw) {
+            document.getElementById('filter-field').value = 'action';
             document.getElementById('filter-keyword').value = kw;
             loadLogs(0);
         }

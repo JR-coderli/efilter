@@ -120,8 +120,36 @@ type LogsQuery struct {
 	Offset      int    `form:"offset"`
 	IP          string `form:"ip"`
 	Keyword     string `form:"keyword"`
+	Field       string `form:"field"`
 	Path        string `form:"path"`
 	ExcludePath string `form:"exclude_path"`
+}
+
+// keywordScopes restricts a keyword search to specific columns; the
+// dashboard always picks one scope (no all-column search). Keys match the
+// frontend select values. json_ip searches request_body, where the
+// caller-supplied ip= value lives.
+var keywordScopes = map[string][]string{
+	"page_path": {"page_path"},
+	"country":   {"country_ip2location"},
+	"action":    {"action"},
+	"json_ip":   {"request_body"},
+}
+
+// keywordFilter builds an ILIKE WHERE clause for the given scope and
+// returns clause plus args. An empty or unknown scope yields no filter.
+func keywordFilter(keyword, field string) (string, []interface{}) {
+	cols, ok := keywordScopes[field]
+	if !ok {
+		return "", nil
+	}
+	parts := make([]string, len(cols))
+	args := make([]interface{}, len(cols))
+	for i, col := range cols {
+		parts[i] = col + " ILIKE ?"
+		args[i] = "%" + keyword + "%"
+	}
+	return strings.Join(parts, " OR "), args
 }
 
 // logStats holds aggregate counts for the dashboard cards.
@@ -169,15 +197,12 @@ func (h *Handler) Logs(c *gin.Context) {
 	}()
 
 	// Keyword search is applied only to the log list, not the top-level stats.
-	// Avoid matching large text columns (request_body/response_body/user_agent/accept_language)
-	// to keep queries fast.
+	// The dashboard always selects a column scope; an unknown scope is ignored.
 	listQuery := baseQuery.Order("created_at DESC")
 	if q.Keyword != "" {
-		pattern := "%" + q.Keyword + "%"
-		listQuery = listQuery.Where(
-			"client_ip ILIKE ? OR country ILIKE ? OR country_ip2location ILIKE ? OR country_maxmind ILIKE ? OR max_city ILIKE ? OR max_asn ILIKE ? OR rule_hit ILIKE ? OR path ILIKE ? OR action ILIKE ? OR domain ILIKE ? OR page_path ILIKE ? OR referer ILIKE ?",
-			pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern,
-		)
+		if clause, args := keywordFilter(q.Keyword, q.Field); clause != "" {
+			listQuery = listQuery.Where(clause, args...)
+		}
 	}
 
 	var logs []models.AccessLog
